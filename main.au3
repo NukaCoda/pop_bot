@@ -7,7 +7,7 @@
 ; Press Shift-Alt-s keys to color pick current mouse position.
 
 Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $mousePos = [0,0]
-Global $boxTL = [0,0], $boxBR = [0,0], $nextTL = [0,0], $nextBR = [0,0], $bottomTL = [0,0], $bottomBR = [0,0], $pickButton = [0,0], $nextButton = [0,0]
+Global $boxTL = [0,0], $boxBR = [0,0], $nextTL = [0,0], $nextBR = [0,0], $bottomTL = [0,0], $bottomBR = [0,0], $pickButton = [0,0], $nextButton = [0,0], $errorTL = [0,0], $errorBR = [0,0]
 Global $iTimeout = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
 
@@ -38,6 +38,7 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set bottom and right bounds for boxes
 		If (MsgBox($MB_OKCANCEL, "Box Locations", "Position your cursor at the bottom right bounds of where the Pop Now boxes are located on your screen. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
@@ -49,6 +50,7 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set top and left bounds for bottom of case
 		If (MsgBox($MB_OKCANCEL, "Case Locations", "Position your cursor slight above and to the left of the bottom most portion of the Pop now case. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
@@ -60,6 +62,7 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set bottom and right bounds for bottom of case
 		If (MsgBox($MB_OKCANCEL, "Case Locations", "Position your cursor slight below and to the right of the bottom most portion of the Pop now case. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
@@ -71,9 +74,34 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
+	$continue = 10
+	While ($continue = 10) ; Set bottom and right bounds for bottom of case
+		If (MsgBox($MB_OKCANCEL, "Error Locations", "Position your cursor in the top left position of the error message. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
+			Terminate()
+		EndIf
+		$errorTL = MouseGetPos()
+		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Top left of error message position set to x = " & $errorTL[0] & ", y = " & $errorTL[1] & ". Continue?")
+	WEnd
+	If ($continue = 2) Then
+		Terminate()
+	EndIf
+
+	$continue = 10
+	While ($continue = 10) ; Set bottom and right bounds for bottom of case
+		If (MsgBox($MB_OKCANCEL, "Error Locations", "Position your cursor in the bottom right position of the error message. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
+			Terminate()
+		EndIf
+		$errorBR = MouseGetPos()
+		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Bottom right of error message position set to x = " & $errorBR[0] & ", y = " & $errorBR[1] & ". Continue?")
+	WEnd
+	If ($continue = 2) Then
+		Terminate()
+	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set top and left bounds for 'next' checker
-		If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor slight above and to the left of the POINT of the 'Next Case' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
+		If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor slight above and to the left of the RIGHT SIDE POINT of the 'Next Case' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 			Terminate()
 		EndIf
 		$nextTL = MouseGetPos()
@@ -82,9 +110,10 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set bottom and right bounds for 'next' checker
-		If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor slight below and to the right of the POINT of the 'Next Case' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
+		If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor slight below and to the right of the RIGHT SIDE POINT of the 'Next Case' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 			Terminate()
 		EndIf
 		$nextBR = MouseGetPos()
@@ -93,6 +122,7 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; set position of 'next' button
 		If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor in the bottom quarter of the 'Next Case' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
@@ -104,6 +134,7 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set position of 'pick one' button
 		If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor on the 'Pick One to Shake' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
@@ -115,6 +146,7 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set color to search for available box
 		If (MsgBox($MB_OKCANCEL, "Color Selection", "Position your cursor on a UNIQUE color of a Pop Now figure. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
@@ -127,6 +159,7 @@ If ($ready = 1) Then
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
+
 	$continue = 10
 	While ($continue = 10) ; Set color to search for bottom of case
 		If (MsgBox($MB_OKCANCEL, "Color Selection", "Position your cursor on a UNIQUE color of the very bottom of the Pop now case. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
@@ -154,10 +187,13 @@ WEnd
 Func TogglePause()
 	$g_bPaused = Not $g_bPaused
 	While $g_bPaused
-		$bottom = PixelSearch($bottomTL[0], $bottomTL[1], $bottomBR[0], $bottomBR[1], $iColorBottom, 0) ; Checks that the set has reached the bottom
+		$bottom = PixelSearch($bottomTL[0], $bottomTL[1], $bottomBR[0], $bottomBR[1], $iColorBottom, 10) ; Checks that the set has reached the bottom
+		;MsgBox($MB_OK, "debug", "bottom pixel search") ;========================================
 		If IsArray($bottom) Then
 			$boxes = PixelSearch($boxTL[0], $boxTL[1], $boxBR[0], $boxBR[1], $iColorBox, 0) ; Box location on screen
-			$next = PixelSearch($nextTL[0], $nextTL[1], $nextBR[0], $nextBR[1], $iColorNext, 150) ; Next button
+			;MsgBox($MB_OK, "debug", "box pixel search") ;========================================
+			$next = PixelSearch($nextTL[0], $nextTL[1], $nextBR[0], $nextBR[1], $iColorNext, 170) ; Next button
+			;MsgBox($MB_OK, "debug", "arrow pixel search") ;========================================
 			#cs
 				The search directions (from AutoIt help file - PixelSearch() function):
 				Left-to-Right because "left" parameter < "right" parameter
@@ -166,13 +202,24 @@ Func TogglePause()
 				So, the top left search color is found first.
 			#ce
 
-			If IsArray($next) Then ; Next button IS loaded
+			If (IsArray($next) = 1) Then ; Next button IS loaded
+			;MsgBox($MB_OK, "debug", "arrow good") ;========================================
 				If IsArray($boxes) Then ; Box IS available
+				;MsgBox($MB_OK, "debug", "box good") ;========================================
 					MouseMove($pickButton[0], $pickButton[1], 0) ; Pick button
 					MouseClick($MOUSE_CLICK_LEFT)
 					$boxes = 0
-					$g_bPaused = 0
+					If (PixelChecksum(errorTL[0], errorTL[1], errorBR[0], errorBR[1]) = 0) Then
+						$g_bPaused = 0
+					Else
+						Sleep(5000)
+						MouseMove($nextButton[0], $nextButton[1], 0) ; Next button ready
+						ToolTip("READY")
+						MouseClick($MOUSE_CLICK_LEFT)
+						$boxes = 0
+					EndIf
 				Else
+				;MsgBox($MB_OK, "debug", "box bad") ;========================================
 					MouseMove($nextButton[0], $nextButton[1], 0) ; Next button ready
 					ToolTip("READY")
 					MouseClick($MOUSE_CLICK_LEFT)
@@ -180,10 +227,12 @@ Func TogglePause()
 				EndIf
 				$next = 0
 			Else
+			;MsgBox($MB_OK, "debug", "arrow bad") ;========================================
 				ToolTip("NOT READY") ; Next button loading
 				$next = 0
 			EndIf
 		Else
+		;MsgBox($MB_OK, "debug", "bottom bad") ;========================================
 		EndIf
 	WEnd
 	ToolTip("")
