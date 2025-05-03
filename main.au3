@@ -1,4 +1,4 @@
-;version 18
+;version 19
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -7,14 +7,16 @@
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <Color.au3>
+#Include <Misc.au3>
 
 Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $mousePos = [0,0]
-Global $boxTL = [0,0], $boxBR = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0]
+Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0]
 Global $iTimeout = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
 Global $casesPassed = 0, $resumeAfterFind = 0
 Global $errorChecksum, $nextChecksum, $caseChecksum, $caseColor
 Global $debugTime = 200
+Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path
 
 HotKeySet("{HOME}", "TogglePause")
 HotKeySet("{ESC}", "Terminate")
@@ -37,15 +39,19 @@ Sleep(100)
 $mouseTemp = MouseGetPos()
 MouseMove(0, 0, 0)
 
+Sleep(10)
+
 ;== Error message location
 $errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
 ;== Next loaded location
 $nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
 ;== Case in position location
-$caseChecksum = PixelChecksum($bottom[0] - 15, $bottom[1] - 15, $bottom[0] + 15, $bottom[1] + 15)
+$caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)
 $caseColor = PixelGetColor($bottom[0], $bottom[1])
 ;== Left of case color
-$boxTLcolor = PixelGetColor($boxTL[0], $boxTL[1])
+$caseLeftColor = PixelGetColor($caseLeft[0], $caseLeft[1])
+
+Sleep(10)
 
 MouseMove($mouseTemp[0], $mouseTemp[1], 0)
 
@@ -97,10 +103,10 @@ Func TogglePause()
 			;== Case in position
 			;ToolTip("Case check")
 			;Sleep(100)
-			If ($caseChecksum = PixelChecksum($bottom[0] - 15, $bottom[1] - 15, $bottom[0] + 15, $bottom[1] + 15)) Then
+			If ($caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)) Then
 				;== Boxes color check
 				Sleep(100)
-				$boxes = PixelSearch($boxTL[0], $boxTL[1], $boxBR[0], $boxBR[1], $iColorBox, 0)
+				$boxes = PixelSearch($box1[0], $box1[1], $box2[0], $box2[1], $iColorBox, 0)
 				;== Box check
 				;== Box available
 				;ToolTip("Box check")
@@ -228,7 +234,7 @@ Func TogglePause()
 					;== Waits for case to move
 					While $ShouldClick = 0
 						;== Case has not moved yet
-						If $boxTLcolor = PixelGetColor($boxTL[0], $boxTL[1]) Then
+						If $caseLeftColor = PixelGetColor($box1[0], $box1[1]) Then
 							;== Do nothing
 						;== Case moves
 						Else
@@ -260,32 +266,65 @@ EndFunc ;== TogglePause
 
 Func Setup()
 	Local $continue = 10
-	;== Set TL bounds for boxes
-	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Box Locations", "Position your cursor at the upper left bounds of where the Pop Now boxes are located on your screen. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
-			Terminate()
-		EndIF
-		$boxTL = MouseGetPos()
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Box Locations", "Top left boxes position set to x = " & $boxTL[0] & ", y = " & $boxTL[1] & ". Continue?")
-	WEnd
-	;== If responce is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
-	EndIf
+	;== Set bounds for boxes
+	; Create GUI prompting user to mark an area or cancel
+	While $continue = 10
+		$hMain_GUI = GUICreate("Boxes", 240, 50)
 
-	;== Reset response
-	$continue = 10
-	;== Set BR bounds for boxes
-	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Box Locations", "Position your cursor at the bottom right bounds of where the Pop Now boxes are located on your screen. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
-			Terminate()
-		EndIf
-		$boxBR = MouseGetPos()
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Box Locations", "Bottom right boxes position set to x = " & $boxBR[0] & ", y = " & $boxBR[1] & ". Continue?")
-	WEnd
-	;== If responce is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
+		$hRect_Button   = GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
+		$hCancel_Button = GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
+
+		GUISetState()
+
+		While 1
+
+		    Switch GUIGetMsg()
+		        Case $GUI_EVENT_CLOSE, $hCancel_Button
+		            FileDelete(@TempDir & "\Rect.bmp")
+					Terminate()
+		        Case $hRect_Button
+		            GUIDelete($hMain_GUI)
+		            Mark_Rect()
+		    ; Capture selected area
+		            $sBMP_Path = @TempDir & "\Rect.bmp"
+		            _ScreenCapture_Capture($sBMP_Path, $iX1, $iY1, $iX2, $iY2, False)
+		    ; Display image
+		            $hBitmap_GUI = GUICreate("Selected Rectangle", $iX2 - $iX1 + 1, $iY2 - $iY1 + 45, -1, -1)
+		            $hPic = GUICtrlCreatePic($sBMP_Path, 0, 0, $iX2 - $iX1 + 1, $iY2 - $iY1 + 1)
+		            $cancelButton = GUICtrlCreateButton("Cancel", 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
+					$retryButton = GUICtrlCreateButton("Try Again", (($iX2 - $iX1) / 3) + 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
+					$contButton = GUICtrlCreateButton("Continue", ((($iX2 - $iX1) / 3) * 2) + 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
+					GUISetState()
+					WinActivate("Selected Rectangle")
+					While 1
+							Switch GUIGetMsg()
+								Case $GUI_EVENT_CLOSE, $cancelButton
+									Terminate()
+								Case $contButton
+									$continue = 11
+									GUIDelete($hBitmap_GUI)
+									ExitLoop
+								Case $retryButton
+									$continue = 10
+									GUIDelete($hBitmap_GUI)
+									ExitLoop
+							EndSwitch
+					WEnd
+					ExitLoop
+		    EndSwitch
+		WEnd
+		$box1[0] = $iX1
+		$box1[1] = $iY1
+		$box2[0] = $iX2
+		$box2[1] = $iY2
+	Wend
+	; -------------
+	If $box1[0] < $box2[0] Then
+		$caseLeft[0] = $box1[0]
+		$caseLeft[1] = $box1[1]
+	Else
+		$caseLeft[0] = $box2[0]
+		$caseLeft[1] = $box2[1]
 	EndIf
 
 	;== Reset response
@@ -426,7 +465,7 @@ Func Setup()
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
-EndFunc
+EndFunc ;== Setup
 
 Func LoadPreset()
 	$refreshGUI = 1
@@ -490,10 +529,10 @@ Func LoadPreset()
 		Terminate()
     EndIf
 
-	$boxTL[0]		= FileReadLine($rFileHandle, 1)
-	$boxTL[1]		= FileReadLine($rFileHandle, 2)
-	$boxBR[0]		= FileReadLine($rFileHandle, 3)
-	$boxBR[1]		= FileReadLine($rFileHandle, 4)
+	$box1[0]		= FileReadLine($rFileHandle, 1)
+	$box1[1]		= FileReadLine($rFileHandle, 2)
+	$box2[0]		= FileReadLine($rFileHandle, 3)
+	$box2[1]		= FileReadLine($rFileHandle, 4)
 	$bottom[0]		= FileReadLine($rFileHandle, 5)
 	$bottom[1]		= FileReadLine($rFileHandle, 6)
 	$error[0]		= FileReadLine($rFileHandle, 7)
@@ -506,7 +545,7 @@ Func LoadPreset()
 	$pickButton[1]	= FileReadLine($rFileHandle, 14)
 	$iColorBox		= FileReadLine($rFileHandle, 15)
 
-	MsgBox($MB_SYSTEMMODAL, "Loaded Content", "Top Left of boxes [x] = " & $boxTL[0] & @CRLF & "Top Left of boxes [y] = " & $boxTL[1] & @CRLF & "Bottom Right of boxes [x] = " & $boxBR[0] & @CRLF & "Bottom Right of boxes [y] = " & $boxBR[1] & @CRLF & "Lowest point of case [x] = " & $bottom[0] & @CRLF & "Lowest point of case [y] = " & $bottom[1] & @CRLF & "Center of error banner area [x] = " & $error[0] & @CRLF & "Center of error banner area [y] = " & $error[1] & @CRLF & "Center of next button [x] = " & $next[0] & @CRLF & "Center of next button [y] = " & $next[1] & @CRLF & "Bottom quarter of next button [x] = " & $nextButton[0] & @CRLF & "Bottom quarter of next button [y] = " & $nextButton[1] & @CRLF & "Location of 'Pick One' button [x] = " & $pickButton[0] & @CRLF & "Location of 'Pick One' button [y] = " & $pickButton[1] & @CRLF & "Color of Pop Now figure = 0x" & Hex($iColorBox, 6))
+	MsgBox($MB_SYSTEMMODAL, "Loaded Content", "Top Left of boxes [x] = " & $box1[0] & @CRLF & "Top Left of boxes [y] = " & $box1[1] & @CRLF & "Bottom Right of boxes [x] = " & $box2[0] & @CRLF & "Bottom Right of boxes [y] = " & $box2[1] & @CRLF & "Lowest point of case [x] = " & $bottom[0] & @CRLF & "Lowest point of case [y] = " & $bottom[1] & @CRLF & "Center of error banner area [x] = " & $error[0] & @CRLF & "Center of error banner area [y] = " & $error[1] & @CRLF & "Center of next button [x] = " & $next[0] & @CRLF & "Center of next button [y] = " & $next[1] & @CRLF & "Bottom quarter of next button [x] = " & $nextButton[0] & @CRLF & "Bottom quarter of next button [y] = " & $nextButton[1] & @CRLF & "Location of 'Pick One' button [x] = " & $pickButton[0] & @CRLF & "Location of 'Pick One' button [y] = " & $pickButton[1] & @CRLF & "Color of Pop Now figure = 0x" & Hex($iColorBox, 6))
 
 	FileClose($rFileHandle)
 EndFunc ;== LoadPreset
@@ -540,7 +579,7 @@ Func SavePreset()
 	EndIf
 
     ; Write data to the file using the handle returned by FileOpen.
-    FileWrite($hFilehandle, $boxTL[0] & @CRLF & $boxTL[1] & @CRLF & $boxBR[0] & @CRLF & $boxBR[1] & @CRLF & $bottom[0] & @CRLF & $bottom[1] & @CRLF & $error[0] & @CRLF &  $error[1] & @CRLF & $next[0] & @CRLF & $next[1] & @CRLF & $nextButton[0] & @CRLF & $nextButton[1] & @CRLF & $pickButton[0] & @CRLF & $pickButton[1] & @CRLF & $iColorBox)
+    FileWrite($hFilehandle, $box1[0] & @CRLF & $box1[1] & @CRLF & $box2[0] & @CRLF & $box2[1] & @CRLF & $bottom[0] & @CRLF & $bottom[1] & @CRLF & $error[0] & @CRLF &  $error[1] & @CRLF & $next[0] & @CRLF & $next[1] & @CRLF & $nextButton[0] & @CRLF & $nextButton[1] & @CRLF & $pickButton[0] & @CRLF & $pickButton[1] & @CRLF & $iColorBox)
 
 	MsgBox($MB_SYSTEMMODAL, "File Content", FileRead($sFileName))
 
@@ -550,6 +589,72 @@ Func SavePreset()
 	MsgBox($MB_OK, "Save Preset", "Preset saved." & @CRLF & "File location: " & FileGetLongName($sFileName))
 
 EndFunc ;== SavePreset
+
+Func Mark_Rect()
+
+    Local $aMouse_Pos, $aMask, $aM_Mask, $iTemp
+    Local $UserDLL = DllOpen("user32.dll")
+
+; Wait until mouse button pressed
+    While Not _IsPressed("01", $UserDLL)
+		ToolTip("Pop Now Bot" & @CRLF & @CRLF & "Click and Drag to select area")
+        Sleep(50)
+    WEnd
+
+; Get first mouse position
+    $aMouse_Pos = MouseGetPos()
+    $iX1 = $aMouse_Pos[0]
+    $iY1 = $aMouse_Pos[1]
+
+    Global $hRectangle_GUI = GUICreate("", @DesktopWidth, @DesktopHeight, 0, 0, $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
+    GUISetBkColor(0x000000)
+
+; Draw rectangle while mouse button pressed
+    While _IsPressed("01", $UserDLL)
+		ToolTip("Pop Now Bot" & @CRLF & @CRLF & "Selecting area")
+        $aMouse_Pos = MouseGetPos()
+
+        $aM_Mask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", 0, "long", 0, "long", 0, "long", 0)
+; Bottom of rectangle
+        $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $iX1, "long", $aMouse_Pos[1], "long", $aMouse_Pos[0], "long", $aMouse_Pos[1] + 1)
+        DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
+; Left of rectangle
+        $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $iX1, "long", $iY1, "long", $iX1 + 1, "long", $aMouse_Pos[1])
+        DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
+; Top of rectangle
+        $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $iX1 + 1, "long", $iY1 + 1, "long", $aMouse_Pos[0], "long", $iY1)
+        DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
+; Right of rectangle
+        $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $aMouse_Pos[0], "long", $iY1, "long", $aMouse_Pos[0] + 1, "long", $aMouse_Pos[1])
+        DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
+        DllCall("user32.dll", "long", "SetWindowRgn", "hwnd", $hRectangle_GUI, "long", $aM_Mask[0], "int", 1)
+
+		If BitAND(WinGetState(''), 2) <> 0 Then GUISetState()
+
+        Sleep(50)
+
+    WEnd
+	ToolTip("")
+; Get second mouse position
+    $iX2 = $aMouse_Pos[0]
+    $iY2 = $aMouse_Pos[1]
+
+; Set in correct order if required
+    If $iX2 < $iX1 Then
+        $iTemp = $iX1
+        $iX1 = $iX2
+        $iX2 = $iTemp
+    EndIf
+    If $iY2 < $iY1 Then
+        $iTemp = $iY1
+        $iY1 = $iY2
+        $iY2 = $iTemp
+    EndIf
+
+    GUIDelete($hRectangle_GUI)
+    DllClose($UserDLL)
+
+EndFunc ;== Mark_Rect
 
 Func Terminate()
 	Exit
