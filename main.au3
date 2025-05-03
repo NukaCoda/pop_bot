@@ -1,4 +1,4 @@
-;version 17.2
+;version 18
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -30,7 +30,7 @@ If ($ready = 1) Then
 	EndIf
 Else
 	Terminate()
-EndIf ;== Finish setup *************************************************************************
+EndIf
 
 Sleep(100)
 
@@ -429,37 +429,66 @@ Func Setup()
 EndFunc
 
 Func LoadPreset()
-
-	$presentResponse = 0
-
+	$refreshGUI = 1
 	Do
-		Local $lPresetName = InputBox("Load Preset", "Presets location: ..\Pop Now Bot\Presets" & @CRLF & @CRLF & "Enter the name of the preset.")
-
-		If @error = 1 Then
-			Exit
-		EndIf
-
-		$rFileName = @WorkingDir & "\Presets\" & $lPresetName & ".txt"
-
-		$rFileHandle = FileOpen($rFileName, $FO_READ)
-
-		If $rFileHandle = -1 Then
-
-			Local $listRepsonse = MsgBox($MB_YESNOCANCEL, "ERROR", "An error occurred when reading the file." & @CRLF & @CRLF & "Make sure the preset file is in the 'Presets' folder wherever the 'Pop Now Bot' zip file was extracted" & @CRLF & @CRLF & "List current presets?")
-
-    	    If $listRepsonse = 6 Then ;clicked yes
-				FileClose($rFileHandle)
-
-			ElseIf $listRepsonse = 7 Then ;clicked no
-				FileClose($rFileHandle)
-
-			Else ;clicked cancel
-				FileClose($rFileHandle)
-    	    	Terminate()
-			EndIf
+		GUICreate("Pop Now Bot Presets", 300, 360)
+		Local $idPresetList = GUICtrlCreateList("", 25, 25, 250, 250)
+		Local $idButton_Confirm = GUICtrlCreateButton("Confirm preset", 25, 275, 250, 25)
+		Local $idButton_Delete = GUICtrlCreateButton("Delete Preset", 25, 310, 250, 25)
+		;
+		Local $hSearch = FileFindFirstFile("Presets\*.txt")
+		;
+		If $hSearch = -1 Then
+    	    MsgBox($MB_SYSTEMMODAL, "", "Error: No files/directories matched the search pattern.")
+    	    Return False
     	EndIf
+		;
+		Local $sFileName = "", $iResult = 0
+		;
+		While 1
+    	    $sFileName = FileFindNextFile($hSearch)
+    	    ; If there is no more file matching the search.
+    	    If @error Then ExitLoop
+			;
+    	    ; Add file name to the list
+    	    GUICtrlSetData($idPresetList, $sFileName)
+    	WEnd
+		;	
+		FileClose($hSearch)
+		;
+		GUICtrlSetState(-1, $GUI_FOCUS)
+		;
+		GUISetState(@SW_SHOW)
+		;
+		; Loop until the user exits.
+    	While 1
+    	    Switch GUIGetMsg()
+    	        Case $GUI_EVENT_CLOSE
+					Terminate()
+    	            ExitLoop
+    	        Case $idButton_Confirm
+    	            MsgBox($MB_SYSTEMMODAL, "", "Selected " & GUICtrlRead($idPresetList) & " preset")
+					$rFileName = "Presets\" & GUICtrlRead($idPresetList)
+					$refreshGUI = 0
+					ExitLoop
+				Case $idButton_Delete
+					If MsgBox($MB_OKCANCEL, "Delete Preset", "Are you sure you want to delete " & GUICtrlRead	($idPresetList) & " preset?") = 1 Then
+						FileDelete("Presets\" & GUICtrlRead($idPresetList))
+					EndIf
+					ExitLoop
+    	    EndSwitch
+    	WEnd
+		GuiDelete()
+	Until $refreshGUI = 0
 
-	Until $presentResponse = 0
+	;$rFileName = @WorkingDir & "\Presets\" & $lPresetName & ".txt"
+
+	$rFileHandle = FileOpen($rFileName, $FO_READ)
+
+	If $rFileHandle = -1 Then
+		MsgBox($MB_OK, "ERROR", "An error occurred when reading the file.")
+		Terminate()
+    EndIf
 
 	$boxTL[0]		= FileReadLine($rFileHandle, 1)
 	$boxTL[1]		= FileReadLine($rFileHandle, 2)
