@@ -1,10 +1,10 @@
-;version 13
+;version 14
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
 
 Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $mousePos = [0,0]
-Global $boxTL = [0,0], $boxBR = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $errorTL = [0,0], $errorBR = [0,0]
+Global $boxTL = [0,0], $boxBR = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0]
 Global $iTimeout = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
 Global $casesPassed = 0, $resumeAfterFind = 0
@@ -64,28 +64,13 @@ If ($ready = 1) Then
 
 		;== Reset response
 		$continue = 10
-		;== Set TL bounds for error message
+		;== Set position for error message
 		While ($continue = 10)
-			If (MsgBox($MB_OKCANCEL, "Error Locations", "Position your cursor to the top left position of the error message. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
+			If (MsgBox($MB_OKCANCEL, "Error Locations", "Position your cursor in the center of the banner above the 'Shake for Hints' text. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 				Terminate()
 			EndIf
-			$errorTL = MouseGetPos()
-			$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Top left of error message position set to x = " & $errorTL[0] & ", y = " & $errorTL[1] & ". Continue?")
-		WEnd
-		;== If responce is 'Cancel', quit program
-		If ($continue = 2) Then
-			Terminate()
-		EndIf
-
-		;== Reset response
-		$continue = 10
-		;== Set BR bounds for error message
-		While ($continue = 10)
-			If (MsgBox($MB_OKCANCEL, "Error Locations", "Position your cursor in the bottom right position of the error message. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
-				Terminate()
-			EndIf
-			$errorBR = MouseGetPos()
-			$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Bottom right of error message position set to x = " & $errorBR[0] & ", y = " & $errorBR[1] & ". Continue?")
+			$error = MouseGetPos()
+			$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Top left of error message position set to x = " & $error[0] & ", y = " & $error[1] & ". Continue?")
 		WEnd
 		;== If responce is 'Cancel', quit program
 		If ($continue = 2) Then
@@ -165,7 +150,7 @@ $mouseTemp = MouseGetPos()
 MouseMove(0, 0, 0)
 
 ;== Error message location
-$errorChecksum = PixelChecksum($errorTL[0], $errorTL[1], $errorBR[0], $errorBR[1])
+$errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
 ;== Next loaded location
 $nextChecksum = PixelChecksum($next[0] - 10, $next[1] - 10, $next[0] + 10, $next[1] + 10)
 ;== Case in position location
@@ -241,7 +226,7 @@ Func TogglePause()
 						Sleep(20)
 						ToolTip($errorTimer & "% Lie Detecting")
 						;== If no error message, errorPresent stays 0
-						If ($errorChecksum = PixelChecksum($errorTL[0], $errorTL[1], $errorBR[0], $errorBR[1])) Then
+						If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
 							$errorTimer = $errorTimer + 2
 						;== If error message, errorPresent counts up
 						Else
@@ -340,19 +325,17 @@ Func LoadPreset()
 	$boxBR[1]		= FileReadLine($rFileHandle, 4)
 	$bottom[0]		= FileReadLine($rFileHandle, 5)
 	$bottom[1]		= FileReadLine($rFileHandle, 6)
-	$errorTL[0]		= FileReadLine($rFileHandle, 7)
-	$errorTL[1]		= FileReadLine($rFileHandle, 8)
-	$errorBR[0]		= FileReadLine($rFileHandle, 9)
-	$errorBR[1]		= FileReadLine($rFileHandle, 10)
-	$next[0]		= FileReadLine($rFileHandle, 11)
-	$next[1]		= FileReadLine($rFileHandle, 12)
-	$nextButton[0]	= FileReadLine($rFileHandle, 13)
-	$nextButton[1]	= FileReadLine($rFileHandle, 14)
-	$pickButton[0]	= FileReadLine($rFileHandle, 15)
-	$pickButton[1]	= FileReadLine($rFileHandle, 16)
-	$iColorBox		= FileReadLine($rFileHandle, 17)
+	$error[0]		= FileReadLine($rFileHandle, 7)
+	$error[1]		= FileReadLine($rFileHandle, 8)
+	$next[0]		= FileReadLine($rFileHandle, 9)
+	$next[1]		= FileReadLine($rFileHandle, 10)
+	$nextButton[0]	= FileReadLine($rFileHandle, 11)
+	$nextButton[1]	= FileReadLine($rFileHandle, 12)
+	$pickButton[0]	= FileReadLine($rFileHandle, 13)
+	$pickButton[1]	= FileReadLine($rFileHandle, 14)
+	$iColorBox		= FileReadLine($rFileHandle, 15)
 
-	MsgBox($MB_SYSTEMMODAL, "Loaded Content", "Top Left of boxes [x] = " & $boxTL[0] & @CRLF & "Top Left of boxes [y] = " & $boxTL[1] & @CRLF & "Bottom Right of boxes [x] = " & $boxBR[0] & @CRLF & "Bottom Right of boxes [y] = " & $boxBR[1] & @CRLF & "Lowest point of case [x] = " & $bottom[0] & @CRLF & "Lowest point of case [y] = " & $bottom[1] & @CRLF & "Top Left of error banner area [x] = " & $errorTL[0] & @CRLF & "Top Left of error banner area [y] = " & $errorTL[1] & @CRLF & "Bottom Right of error banner area [x] = " & $errorBR[0] & @CRLF & "Bottom Right of error banner [y] = " & $errorBR[1] & @CRLF & "Center of next button [x] = " & $next[0] & @CRLF & "Center of next button [y] = " & $next[1] & @CRLF & "Bottom quarter of next button [x] = " & $nextButton[0] & @CRLF & "Bottom quarter of next button [y] = " & $nextButton[1] & @CRLF & "Location of 'Pick One' button [x] = " & $pickButton[0] & @CRLF & "Location of 'Pick One' button [y] = " & $pickButton[1] & @CRLF & "Color of Pop Now figure = 0x" & Hex($iColorBox, 6))
+	MsgBox($MB_SYSTEMMODAL, "Loaded Content", "Top Left of boxes [x] = " & $boxTL[0] & @CRLF & "Top Left of boxes [y] = " & $boxTL[1] & @CRLF & "Bottom Right of boxes [x] = " & $boxBR[0] & @CRLF & "Bottom Right of boxes [y] = " & $boxBR[1] & @CRLF & "Lowest point of case [x] = " & $bottom[0] & @CRLF & "Lowest point of case [y] = " & $bottom[1] & @CRLF & "Center of error banner area [x] = " & $error[0] & @CRLF & "Center of error banner area [y] = " & $error[1] & @CRLF & "Center of next button [x] = " & $next[0] & @CRLF & "Center of next button [y] = " & $next[1] & @CRLF & "Bottom quarter of next button [x] = " & $nextButton[0] & @CRLF & "Bottom quarter of next button [y] = " & $nextButton[1] & @CRLF & "Location of 'Pick One' button [x] = " & $pickButton[0] & @CRLF & "Location of 'Pick One' button [y] = " & $pickButton[1] & @CRLF & "Color of Pop Now figure = 0x" & Hex($iColorBox, 6))
 
 	FileClose($rFileHandle)
 EndFunc ;== LoadPreset
@@ -386,7 +369,7 @@ Func SavePreset()
 	EndIf
 
     ; Write data to the file using the handle returned by FileOpen.
-    FileWrite($hFilehandle, $boxTL[0] & @CRLF & $boxTL[1] & @CRLF & $boxBR[0] & @CRLF & $boxBR[1] & @CRLF & $bottom[0] & @CRLF & $bottom[1] & @CRLF & $errorTL[0] & @CRLF &  $errorTL[1] & @CRLF & $errorBR[0] & @CRLF & $errorBR[1] & @CRLF & $next[0] & @CRLF & $next[1] & @CRLF & $nextButton[0] & @CRLF & $nextButton[1] & @CRLF & $pickButton[0] & @CRLF & $pickButton[1] & @CRLF & $iColorBox)
+    FileWrite($hFilehandle, $boxTL[0] & @CRLF & $boxTL[1] & @CRLF & $boxBR[0] & @CRLF & $boxBR[1] & @CRLF & $bottom[0] & @CRLF & $bottom[1] & @CRLF & $error[0] & @CRLF &  $error[1] & @CRLF & $next[0] & @CRLF & $next[1] & @CRLF & $nextButton[0] & @CRLF & $nextButton[1] & @CRLF & $pickButton[0] & @CRLF & $pickButton[1] & @CRLF & $iColorBox)
 
 	MsgBox($MB_SYSTEMMODAL, "File Content", FileRead($sFileName))
 
