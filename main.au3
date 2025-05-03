@@ -10,6 +10,7 @@ Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iCo
 Global $boxTL = [0,0], $boxBR = [0,0], $nextTL = [0,0], $nextBR = [0,0], $bottomTL = [0,0], $bottomBR = [0,0], $pickButton = [0,0], $nextButton = [0,0], $errorTL = [0,0], $errorBR = [0,0]
 Global $iTimeout = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
+Global $casesPassed = 0
 
 HotKeySet("{HOME}", "TogglePause")
 HotKeySet("{ESC}", "Terminate")
@@ -208,27 +209,32 @@ Func TogglePause()
 				;MsgBox($MB_OK, "debug", "box good") ;========================================
 					MouseMove($pickButton[0], $pickButton[1], 0) ; Pick button
 					MouseClick($MOUSE_CLICK_LEFT)
+					$casesPassed = 0
 					$boxes = 0
 					If (PixelChecksum(errorTL[0], errorTL[1], errorBR[0], errorBR[1]) = 0) Then
 						$g_bPaused = 0
 					Else
 						Sleep(5000)
 						MouseMove($nextButton[0], $nextButton[1], 0) ; Next button ready
-						ToolTip("READY")
+						ToolTip( $casesPassed & " cases since last 'available' box")
+						$casesPassed = $casesPassed + 1
 						MouseClick($MOUSE_CLICK_LEFT)
+						Sleep(800)
 						$boxes = 0
 					EndIf
 				Else
 				;MsgBox($MB_OK, "debug", "box bad") ;========================================
 					MouseMove($nextButton[0], $nextButton[1], 0) ; Next button ready
-					ToolTip("READY")
+					ToolTip( $casesPassed & " cases since last 'available' box")
+					$casesPassed = $casesPassed + 1
 					MouseClick($MOUSE_CLICK_LEFT)
+					Sleep(800)
 					$boxes = 0
 				EndIf
 				$next = 0
 			Else
 			;MsgBox($MB_OK, "debug", "arrow bad") ;========================================
-				ToolTip("NOT READY") ; Next button loading
+				ToolTip( $casesPassed & " cases since last 'available' box")
 				$next = 0
 			EndIf
 		Else
