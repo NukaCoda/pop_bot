@@ -1,4 +1,4 @@
-;version 10
+;version 11
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -80,7 +80,7 @@ If ($ready = 1) Then
 
 		$continue = 10
 		While ($continue = 10) ; Set position for 'next' checker
-			If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor in the center of the 'Next' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2)Then
+			If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor in the center of the 'Next' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 				Terminate()
 			EndIf
 			$next = MouseGetPos()
@@ -104,7 +104,7 @@ If ($ready = 1) Then
 
 		$continue = 10
 		While ($continue = 10) ; Set position of 'pick one' button
-			If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor on the 'Pick One to Shake' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2)Then
+			If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor on the 'Pick One to Shake' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 				Terminate()
 			EndIf
 			$pickButton = MouseGetPos()
@@ -301,14 +301,20 @@ Func SavePreset()
 		EndIf
 	EndIf
 
-	; Open file
-	$hFilehandle = FileOpen($sFileName, $FO_CREATEPATH)
+	$sFilePath = "C:\Pop Now Bot Presets"
 
+	DirCreate($sFilePath)
+
+	; Open file
+	FileOpen($sFileName, $FO_CREATEPATH)
+
+	FileClose($sFileName)
 	$hFilehandle = FileOpen($sFileName, $FO_APPEND)
 	
 	; Prove it exists
 	If Not FileExists($sFileName) Then
-	    MsgBox($MB_SYSTEMMODAL, "File", "Error creating file")
+	    MsgBox($MB_SYSTEMMODAL, "File", "Error creating file." & @CRLF & @CRLF & "Application closing")
+		Terminate()
 	EndIf
 
     ; Write data to the file using the handle returned by FileOpen.
