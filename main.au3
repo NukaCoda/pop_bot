@@ -1,4 +1,4 @@
-;version 17.1
+;version 17.2
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -68,7 +68,7 @@ Func TogglePause()
 		$resumeAfterFind = 0
 	EndIf
 	;== Program paused
-	While Not $g_bPaused
+	While $g_bPaused = 0
 		If $casesPassed = 1 Then
 			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
 			Sleep(50)
@@ -79,7 +79,7 @@ Func TogglePause()
 	WEnd ;== Program paused
 
 	;== Program unpaused
-	While $g_bPaused
+	While $g_bPaused = 1
 		If $casesPassed = 1 Then
 			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 			Sleep(50)
@@ -121,7 +121,7 @@ Func TogglePause()
 					$errorPresent = 0
 					$errorTimer = 0
 
-					;== False positive check ***********************************************************
+					;== False positive check
 					While ($errorTimer <= 1000)
 						While ($errorTimer <= 30)
 							ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
@@ -194,18 +194,16 @@ Func TogglePause()
 					Else
 						$resumeAfterFind = 1
 						$g_bPaused = 0
-						$playSuccessFound = 1
 						;== Program pauses until user resumes or quits
-						While Not $g_bPaused
+						While $g_bPaused = 0
 							If $casesPassed = 0 Then
 								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " case!")
 							Else
 								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " cases!")
 							EndIf
-							If $playSuccessFound = 1 Then
-								SoundPlay("Success Sound\Champions.mp3")
-								$playSuccessFound = 0
-							EndIf
+							FileOpen(@WorkingDir & "\Success Sound\Champions.mp3")
+							SoundPlay(@WorkingDir & "\Success Sound\Champions.mp3", 1)
+							FileClose(@WorkingDir & "\Success Sound\Champions.mp3")
 							Sleep(50)
 						WEnd
 					EndIf
@@ -270,7 +268,7 @@ Func Setup()
 		$boxTL = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Box Locations", "Top left boxes position set to x = " & $boxTL[0] & ", y = " & $boxTL[1] & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -285,7 +283,7 @@ Func Setup()
 		$boxBR = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Box Locations", "Bottom right boxes position set to x = " & $boxBR[0] & ", y = " & $boxBR[1] & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -324,7 +322,7 @@ Func Setup()
 
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Case Location", "Position set to x = " & $bottom[0] & ", y = " & $bottom[1] & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -339,7 +337,7 @@ Func Setup()
 		$error = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Top left of error message position set to x = " & $error[0] & ", y = " & $error[1] & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -348,13 +346,13 @@ Func Setup()
 	$continue = 10
 	;== Set position for 'next' checker
 	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor in the center of the 'Next' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2)Then
+		If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor in the center of the 'Next' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 			Terminate()
 		EndIf
 		$next = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Next Case Checker", "Position set to x = " & $next[0] & ", y = " & $next[1] & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -369,7 +367,7 @@ Func Setup()
 		$nextButton = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Next Case' button set to x = " & $nextButton[0] & ", y = " & $nextButton[1] & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -378,13 +376,13 @@ Func Setup()
 	$continue = 10
 	;== Set position of 'pick one' button
 	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor on the 'Pick One to Shake' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2)Then
+		If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor on the 'Pick One to Shake' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 			Terminate()
 		EndIf
 		$pickButton = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Pick One to Shake' button set to x = " & $pickButton[0] & ", y = " & $pickButton[1] & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -424,7 +422,7 @@ Func Setup()
 		$iColorBox = PixelGetColor($mousePos[0], $mousePos[1])
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Color Selection", "Hex color code for Pop Now box color is 0x" & Hex($iColorBox, 6) & ". Continue?")
 	WEnd
-	;== If response is 'Cancel', quit program
+	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -441,7 +439,7 @@ Func LoadPreset()
 			Exit
 		EndIf
 
-		$rFileName = "Presets\" & $lPresetName & ".txt"
+		$rFileName = @WorkingDir & "\Presets\" & $lPresetName & ".txt"
 
 		$rFileHandle = FileOpen($rFileName, $FO_READ)
 
@@ -488,7 +486,7 @@ Func SavePreset()
 	$sNewPreset = InputBox("Save Preset", "Enter the name of the preset.")
 
 	; Create file
-    $sFileName = "Presets\" & $sNewPreset & ".txt"
+    $sFileName = @WorkingDir & "\Presets\" & $sNewPreset & ".txt"
 	
 	If FileExists($sFileName) Then
 	    If (MsgBox($MB_YESNO, "File", "File already exists. Repalce old file?") = 6) Then
