@@ -1,9 +1,11 @@
-;version 15
+;version 16
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
 #include <ScreenCapture.au3>
 #include <GUIConstantsEx.au3>
+#include <WindowsConstants.au3>
+#include <Color.au3>
 
 Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $mousePos = [0,0]
 Global $boxTL = [0,0], $boxBR = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0]
@@ -23,7 +25,7 @@ If ($ready = 1) Then
 		Local $continue = 10
 		;== Set TL bounds for boxes
 		While ($continue = 10)
-			If (MsgBox($MB_OKCANCEL, "Box Locations", "Position your cursor at the upper left bounds of where the Pop Now boxes are located on your screen. Position will be saved in " & $iTimeout & "seconds or click cancel.", $iTimeout) = 2) Then
+			If (MsgBox($MB_OKCANCEL, "Box Locations", "Position your cursor at the upper left bounds of where the Pop Now boxes are located on your screen. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 				Terminate()
 			EndIF
 			$boxTL = MouseGetPos()
@@ -53,11 +55,36 @@ If ($ready = 1) Then
 		$continue = 10
 		;== Set position of bottom of case
 		While ($continue = 10)
-			If (MsgBox($MB_OKCANCEL, "Case Locations", "Position your cursor on a unique color on the bottom of the case. Position will be saved in " & $iTimeout & " seconds or click cancel.",$iTimeout) = 2) Then
+			If (MsgBox($MB_OKCANCEL, "Case Location", "Position your cursor on a unique color on the bottom of the case. Position will be saved in " & $iTimeout & " seconds or click cancel.",$iTimeout) = 2) Then
 				Terminate()
 			EndIf
 			$bottom = MouseGetPos()
-			$continue = MsgBox($MB_CANCELTRYCONTINUE, "Case Locations", "Position set to x = " & $bottom[0] & ", y = " & $bottom[1] & ". Continue?")
+
+			;created a GUI window that shows the color of the pixel selected by the user
+			GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
+			$colorCase = "0x" & Hex(PixelGetColor($bottom[0], $bottom[1]), 6)
+        	GUISetBkColor($colorCase)
+			$textRGB = _ColorGetRGB($colorCase)
+
+			$brightText = GUICtrlCreateLabel("Selected case color" & @CRLF & @CRLF & "Close this window to proceed", 10, 10)
+
+			If $textRGB[0] < 128 or $textRGB[1] < 128 or $textRGB[2] < 128 Then
+			GUICtrlSetColor($brightText, 0xFFFFFF)
+			EndIf
+
+        	GUISetState(@SW_SHOW)
+
+        	; Loop until the user exits.
+        	While 1
+        	        Switch GUIGetMsg()
+        	                Case $GUI_EVENT_CLOSE
+        	                        ExitLoop
+        	        EndSwitch
+        	WEnd
+
+			GUIDelete()
+
+			$continue = MsgBox($MB_CANCELTRYCONTINUE, "Case Location", "Position set to x = " & $bottom[0] & ", y = " & $bottom[1] & ". Continue?")
 		WEnd
 		;== If responce is 'Cancel', quit program
 		If ($continue = 2) Then
@@ -132,6 +159,31 @@ If ($ready = 1) Then
 				Terminate()
 			EndIf
 			$mousePos = MouseGetPos()
+
+			;creates a GUI window that shows the color of the pixel selected by the user
+			GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
+			$colorCase = "0x" & Hex(PixelGetColor($mousePos[0], $mousePos[1]), 6)
+        	GUISetBkColor($colorCase)
+			$textRGB = _ColorGetRGB($colorCase)
+	
+			$brightText = GUICtrlCreateLabel("Selected box color" & @CRLF & @CRLF & "Close this window to proceed", 10, 10)
+			
+			If $textRGB[0] < 128 or $textRGB[1] < 128 or $textRGB[2] < 128 Then
+			GUICtrlSetColor($brightText, 0xFFFFFF)
+			EndIf
+	
+        	GUISetState(@SW_SHOW)
+	
+        	; Loop until the user exits.
+        	While 1
+        	        Switch GUIGetMsg()
+        	                Case $GUI_EVENT_CLOSE
+        	                        ExitLoop
+        	        EndSwitch
+        	WEnd
+	
+			GUIDelete()
+			
 			$iColorBox = PixelGetColor($mousePos[0], $mousePos[1])
 			$continue = MsgBox($MB_CANCELTRYCONTINUE, "Color Selection", "Hex color code for Pop Now box color is 0x" & Hex($iColorBox, 6) & ". Continue?")
 		WEnd
@@ -161,8 +213,6 @@ $caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $b
 $boxTLcolor = PixelGetColor($boxTL[0], $boxTL[1])
 
 MouseMove($mouseTemp[0], $mouseTemp[1], 0)
-
-Sleep(50)
 
 ;== Save Preset
 If (MsgBox($MB_YESNO, "Save Preset", "Would you like to save these parameters as a preset?") = 6) Then
