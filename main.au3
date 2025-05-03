@@ -1,4 +1,4 @@
-;version 16
+;version 17
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -12,7 +12,7 @@ Global $boxTL = [0,0], $boxBR = [0,0], $next = [0,0], $bottom = [0,0], $pickButt
 Global $iTimeout = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
 Global $casesPassed = 0, $resumeAfterFind = 0
-Global $errorChecksum, $nextChecksum, $caseChecksum
+Global $errorChecksum, $nextChecksum, $caseChecksum, $caseColor
 Global $debugTime = 200
 
 HotKeySet("{HOME}", "TogglePause")
@@ -206,9 +206,10 @@ MouseMove(0, 0, 0)
 ;== Error message location
 $errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
 ;== Next loaded location
-$nextChecksum = PixelChecksum($next[0] - 10, $next[1] - 10, $next[0] + 10, $next[1] + 10)
+$nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
 ;== Case in position location
-$caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)
+$caseChecksum = PixelChecksum($bottom[0] - 15, $bottom[1] - 15, $bottom[0] + 15, $bottom[1] + 15)
+$caseColor = PixelGetColor($bottom[0], $bottom[1])
 ;== Left of case color
 $boxTLcolor = PixelGetColor($boxTL[0], $boxTL[1])
 
@@ -256,15 +257,15 @@ Func TogglePause()
 		;== Next button loaded
 		;ToolTip("Next check")
 		;Sleep(100)
-		If ($nextChecksum = PixelChecksum($next[0] - 10, $next[1] - 10, $next[0] + 10, $next[1] + 10)) Then
+		If ($nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)) Then
 			;== Case check
 			;== Case in position
 			;ToolTip("Case check")
 			;Sleep(100)
-			If ($caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)) Then
+			If ($caseChecksum = PixelChecksum($bottom[0] - 15, $bottom[1] - 15, $bottom[0] + 15, $bottom[1] + 15)) Then
 				;== Boxes color check
 				Sleep(100)
-				$boxes = PixelSearch($boxTL[0], $boxTL[1], $boxBR[0], $boxBR[1], $iColorBox, 0)
+				$boxes = PixelSearch($boxTL[0], $boxTL[1], $boxBR[0], $boxBR[1], $iColorBox, 10)
 				;== Box check
 				;== Box available
 				;ToolTip("Box check")
@@ -328,8 +329,10 @@ Func TogglePause()
 									$errorTimer = $errorTimer + 40
 								EndIf
 							EndIf
+							$errorTimer = $errorTimer + 10
 							Sleep(50)
 						WEnd
+						$errorTimer = $errorTimer + 10
 						Sleep(50)
 					WEnd
 					;== Error is present, false positive
@@ -345,6 +348,13 @@ Func TogglePause()
 						$casesPassed = $casesPassed + 1
 						MouseMove($nextButton[0], $nextButton[1], 0)
 						MouseClick($MOUSE_CLICK_LEFT)
+						If $casesPassed = 1 Then
+						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						Sleep(50)
+					Else
+						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						Sleep(50)
+					EndIf
 						Sleep(2000)
 					;== Error not present, box successfully found
 					Else
