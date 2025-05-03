@@ -1,4 +1,4 @@
-;version 12
+;version 13
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -7,7 +7,7 @@ Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iCo
 Global $boxTL = [0,0], $boxBR = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $errorTL = [0,0], $errorBR = [0,0]
 Global $iTimeout = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
-Global $casesPassed = 0
+Global $casesPassed = 0, $resumeAfterFind = 0
 Global $errorChecksum, $nextChecksum, $caseChecksum
 Global $debugTime = 200
 
@@ -191,7 +191,9 @@ WEnd
 	
 Func TogglePause()
 	$g_bPaused = Not $g_bPaused
-
+	If $resumeAfterFind = 1 Then
+		$casesPassed = 0
+	EndIf
 	;== Program paused
 	While Not $g_bPaused
 		If $casesPassed = 1 Then
@@ -219,7 +221,8 @@ Func TogglePause()
 			;== Case check
 			;== Case in position
 			If ($caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)) Then
-				;== Boxes location
+				;== Boxes color check
+				Sleep(100)
 				$boxes = PixelSearch($boxTL[0], $boxTL[1], $boxBR[0], $boxBR[1], $iColorBox, 0)
 				;== Box check
 				;== Box available
@@ -264,17 +267,17 @@ Func TogglePause()
 						Sleep(2000)
 					;== Error not present, box successfully found
 					Else
+						$resumeAfterFind = 1
 						$g_bPaused = 0
 						;== Program pauses until user resumes or quits
 						While Not $g_bPaused
-							If $casesPassed = 1 Then
-								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed & " case!")
+							If $casesPassed = 0 Then
+								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " case!")
 							Else
 								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " cases!")
 							EndIf
 							Sleep(50)
 						Wend
-						$casesPassed = 0
 					EndIf
 				;== Box unavailable
 				Else
