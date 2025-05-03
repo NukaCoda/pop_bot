@@ -1,4 +1,4 @@
-;version 20
+;version 21
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -37,21 +37,22 @@ EndIf
 Sleep(100)
 
 $mouseTemp = MouseGetPos()
-MouseMove(0, 0, 0)
-
-Sleep(10)
-
-;== Error message location
-$errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
-;== Next loaded location
-$nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
-;== Case in position location
-$caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset)
-$caseColor = PixelGetColor($bottom[0], $bottom[1])
-;== Left of case color
-$caseLeftColor = PixelGetColor($caseLeft[0], $caseLeft[1])
-
-Sleep(10)
+$counterPicker = 0
+Do
+	MouseMove($pickButton[0], $pickButton[1], 0)
+	$pickColor = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
+	;== Error message location
+	$errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
+	;== Next loaded location
+	$nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
+	;== Case in position location
+	$caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + 	$bottomOffset, $bottom[1] + $bottomOffset)
+	$caseColor = PixelGetColor($bottom[0], $bottom[1])
+	;== Left of case color
+	$caseLeftColor = PixelGetColor($caseLeft[0], $caseLeft[1])
+	$counterPicker = $counterPicker + 1
+	Sleep(10)
+Until $counterPicker = 20
 
 MouseMove($mouseTemp[0], $mouseTemp[1], 0)
 
@@ -103,9 +104,9 @@ Func TogglePause()
 			;== Case in position
 			;ToolTip("Case check")
 			;Sleep(100)
-			If ($caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)) Then
+			If ($caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset)) Then
 				;== Boxes color check
-				Sleep(100)
+				;Sleep(100)
 				$boxes = PixelSearch($box1[0], $box1[1], $box2[0], $box2[1], $iColorBox, 0)
 				;== Box check
 				;== Box available
@@ -114,6 +115,7 @@ Func TogglePause()
 				If IsArray($boxes) Then
 					;== Mouse clicks pick button
 					MouseMove($pickButton[0], $pickButton[1], 0)
+					MouseClick($MOUSE_CLICK_LEFT)
 
 					If $casesPassed = 1 Then
 						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
@@ -123,21 +125,22 @@ Func TogglePause()
 						Sleep(50)
 					EndIf
 
-					MouseClick($MOUSE_CLICK_LEFT)
 					$errorPresent = 0
 					$errorTimer = 0
+					$loadingStage = 0
+					$pickLoad
 
 					;== False positive check
 					While ($errorTimer <= 1000)
-						While ($errorTimer <= 30)
+						While ($errorTimer <= 50)
 							ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
 							;== Color of pick button when it is present with the cursor over it
-							$pickColor = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
+							$pickLoad = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
 							$errorTimer = $errorTimer + 3
 							Sleep(50)
 						WEnd
 						While ($errorTimer <= 999)
-							If (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickColor) Then
+							If (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickColor) or  (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickLoad) Then
 								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
 								;== If no error message, errorPresent stays 0
 								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
@@ -149,30 +152,31 @@ Func TogglePause()
 								EndIf
 							ElseIf (Hex(PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5), 6) = "FFFFFF") Then
 								$pickColor = "FF00FF"
+								$pickLoad = "FF00FF"
 								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
 								;== If no error message, errorPresent stays 0
 								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
-									$errorTimer = $errorTimer + 10
+									$errorTimer = $errorTimer + 5
 								;== If error message, errorPresent counts up
 								Else
 									$errorPresent = $errorPresent + 1
-									$errorTimer = $errorTimer + 10
+									$errorTimer = $errorTimer + 5
 								EndIf
 							Else
 								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
 								;== If no error message, errorPresent stays 0
 								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
-									$errorTimer = $errorTimer + 40
+									$errorTimer = $errorTimer + 50
 								;== If error message, errorPresent counts up
 								Else
 									$errorPresent = $errorPresent + 1
-									$errorTimer = $errorTimer + 40
+									$errorTimer = $errorTimer + 50
 								EndIf
 							EndIf
-							$errorTimer = $errorTimer + 10
+							$errorTimer = $errorTimer + 20
 							Sleep(50)
 						WEnd
-						$errorTimer = $errorTimer + 10
+						$errorTimer = $errorTimer + 20
 						Sleep(50)
 					WEnd
 					;== Error is present, false positive
@@ -207,9 +211,8 @@ Func TogglePause()
 							Else
 								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " cases!")
 							EndIf
-							FileOpen(@WorkingDir & "\Success Sound\Champions.mp3")
-							SoundPlay(@WorkingDir & "\Success Sound\Champions.mp3", 1)
-							FileClose(@WorkingDir & "\Success Sound\Champions.mp3")
+							SoundSetWaveVolume(30)
+							SoundPlay("Success Sound\Champions.wav", 1)
 							Sleep(50)
 						WEnd
 					EndIf
