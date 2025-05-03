@@ -1,4 +1,4 @@
-;version 21
+;version 22
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -16,6 +16,7 @@ Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @De
 Global $casesPassed = 0, $resumeAfterFind = 0
 Global $errorChecksum, $nextChecksum, $caseChecksum, $caseColor
 Global $debugTime = 200
+Global $hRectangle_GUI
 Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path
 
 HotKeySet("{HOME}", "TogglePause")
@@ -127,8 +128,8 @@ Func TogglePause()
 
 					$errorPresent = 0
 					$errorTimer = 0
-					$loadingStage = 0
-					$pickLoad
+					;$loadingStage = 0
+					Local $pickLoad = 0
 
 					;== False positive check
 					While ($errorTimer <= 1000)
@@ -204,6 +205,7 @@ Func TogglePause()
 					Else
 						$resumeAfterFind = 1
 						$g_bPaused = 0
+                        Local $soundPlayed = 0
 						;== Program pauses until user resumes or quits
 						While $g_bPaused = 0
 							If $casesPassed = 0 Then
@@ -211,9 +213,12 @@ Func TogglePause()
 							Else
 								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " cases!")
 							EndIf
-							SoundSetWaveVolume(30)
-							SoundPlay("Success Sound\Champions.wav", 1)
-							Sleep(50)
+							If $soundPlayed = 0 Then
+                                $soundPlayed = 1
+                                SoundSetWaveVolume(30)
+							    SoundPlay("Success Sound\Champions.wav", 0)
+							EndIf
+                            Sleep(50)
 						WEnd
 					EndIf
 				;== Box unavailable
@@ -247,22 +252,22 @@ Func TogglePause()
 						EndIF
 					WEnd
 					$boxes = 0
-					$case = 0
-					$loaded = 0
+					;$case = 0
+					;$loaded = 0
 				EndIf ;== Box check
 				$boxes = 0
-				$case = 0
-				$loaded = 0
+				;$case = 0
+				;$loaded = 0
 			;== Case not in position
 			EndIf ;== Case check
 			$boxes = 0
-			$case = 0
-			$loaded = 0
+			;$case = 0
+			;$loaded = 0
 		;== Next button not loaded
 		EndIf ;== Next check
 		$boxes = 0
-		$case = 0
-		$loaded = 0
+		;$case = 0
+		;$loaded = 0
 	WEnd ;== Program unpaused
 	ToolTip("")
 EndFunc ;== TogglePause
@@ -293,7 +298,8 @@ Func Setup()
 		            _ScreenCapture_Capture($sBMP_Path, $iX1, $iY1, $iX2, $iY2, False)
 		    ; Display image
 		            $hBitmap_GUI = GUICreate("Selected Rectangle", $iX2 - $iX1 + 1, $iY2 - $iY1 + 45, -1, -1)
-		            $hPic = GUICtrlCreatePic($sBMP_Path, 0, 0, $iX2 - $iX1 + 1, $iY2 - $iY1 + 1)
+		            ;$hPic = 
+					GUICtrlCreatePic($sBMP_Path, 0, 0, $iX2 - $iX1 + 1, $iY2 - $iY1 + 1)
 		            $cancelButton = GUICtrlCreateButton("Cancel", 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
 					$retryButton = GUICtrlCreateButton("Try Again", (($iX2 - $iX1) / 3) + 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
 					$contButton = GUICtrlCreateButton("Continue", ((($iX2 - $iX1) / 3) * 2) + 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
@@ -342,10 +348,12 @@ Func Setup()
 		$sCasePic_Path = @TempDir & "\Case.bmp"
 		_ScreenCapture_Capture($sCasePic_Path, $bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset, False)
 
-		$hCaseGUI = GUICreate("", $bottomOffset * 20, $bottomOffset * 20 + 110) ; will create a dialog box that when displayed is centered
+		;$hCaseGUI = 
+		GUICreate("", $bottomOffset * 20, $bottomOffset * 20 + 110) ; will create a dialog box that when displayed is centered
 		$colorCase = "0x" & Hex(PixelGetColor($bottom[0], $bottom[1]), 6)
 
-		$hCasePic = GUICtrlCreatePic($sCasePic_Path, $bottomOffset * 9, $bottomOffset * 9, $bottomOffset * 2, $bottomOffset * 2)
+		;$hCasePic = 
+		GUICtrlCreatePic($sCasePic_Path, $bottomOffset * 9, $bottomOffset * 9, $bottomOffset * 2, $bottomOffset * 2)
 
 		; Display image
 
@@ -486,31 +494,32 @@ Func LoadPreset()
 		Local $idPresetList = GUICtrlCreateList("", 25, 25, 250, 250)
 		Local $idButton_Confirm = GUICtrlCreateButton("Confirm preset", 25, 275, 250, 25)
 		Local $idButton_Delete = GUICtrlCreateButton("Delete Preset", 25, 310, 250, 25)
-		;
+		
 		Local $hSearch = FileFindFirstFile("Presets\*.txt")
-		;
+		
 		If $hSearch = -1 Then
     	    MsgBox($MB_SYSTEMMODAL, "", "Error: No files/directories matched the search pattern.")
     	    Return False
     	EndIf
-		;
-		Local $sFileName = "", $iResult = 0
-		;
+		
+		Local $sFileName = ""
+		;$iResult = 0
+		
 		While 1
     	    $sFileName = FileFindNextFile($hSearch)
     	    ; If there is no more file matching the search.
     	    If @error Then ExitLoop
-			;
+			
     	    ; Add file name to the list
     	    GUICtrlSetData($idPresetList, $sFileName)
     	WEnd
-		;	
+		
 		FileClose($hSearch)
-		;
+		
 		GUICtrlSetState(-1, $GUI_FOCUS)
-		;
+		
 		GUISetState(@SW_SHOW)
-		;
+		
 		; Loop until the user exits.
     	While 1
     	    Switch GUIGetMsg()
@@ -618,7 +627,7 @@ Func Mark_Rect()
     $iX1 = $aMouse_Pos[0]
     $iY1 = $aMouse_Pos[1]
 
-    Global $hRectangle_GUI = GUICreate("", @DesktopWidth, @DesktopHeight, 0, 0, $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
+    $hRectangle_GUI = GUICreate("", @DesktopWidth, @DesktopHeight, 0, 0, $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
     GUISetBkColor(0x000000)
 
 ; Draw rectangle while mouse button pressed
