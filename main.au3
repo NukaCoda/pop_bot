@@ -1,4 +1,4 @@
-;version 22
+;version 23
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -14,60 +14,138 @@ Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton
 Global $iTimeout = 10, $bottomOffset = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
 Global $casesPassed = 0, $resumeAfterFind = 0
-Global $errorChecksum, $nextChecksum, $caseChecksum, $caseColor
+Global $errorChecksum, $nextChecksum, $caseChecksum, $caseColor, $caseLeftColor, $pickColor
 Global $debugTime = 200
-Global $hRectangle_GUI
 Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path
 
 HotKeySet("{HOME}", "TogglePause")
 HotKeySet("{ESC}", "Terminate")
 
-$ready = MsgBox($MB_OKCANCEL, "Pop Now Bot", "This program will automatically click through pages of Pop Now figures and click the 'Pick One to Shake' button when one is available. There are some steps to ensure the program runs smoothly. Ready to set up the parameters for Pop Now Bot?")
+Initiate()
 
-If ($ready = 1) Then
-	$presetResponse = MsgBox($MB_YESNO, "Load Preset", "Do you want to load a preset?")
-	If $presetResponse = 6 Then
-		LoadPreset()
-	ElseIf $presetResponse = 7 Then
-		Setup()
+Func Initiate()
+	$ready = MsgBox($MB_OKCANCEL, "Pop Now Bot", "This program will automatically click through pages of Pop Now figures and click the 'Pick One to Shake' button when one is available. There are some steps to ensure the program runs smoothly. Ready to set up the parameters for Pop Now Bot?")
+
+	If ($ready = 1) Then
+		$presetResponse = MsgBox($MB_YESNO, "Load Preset", "Do you want to load a preset?")
+		If $presetResponse = 6 Then
+			LoadPreset()
+		ElseIf $presetResponse = 7 Then
+			Setup()
+		EndIf
+	Else
+		Terminate()
 	EndIf
-Else
-	Terminate()
-EndIf
-
-Sleep(100)
-
-$mouseTemp = MouseGetPos()
-$counterPicker = 0
-Do
-	MouseMove($pickButton[0], $pickButton[1], 0)
-	$pickColor = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
-	;== Error message location
-	$errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
-	;== Next loaded location
-	$nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
-	;== Case in position location
-	$caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + 	$bottomOffset, $bottom[1] + $bottomOffset)
-	$caseColor = PixelGetColor($bottom[0], $bottom[1])
-	;== Left of case color
-	$caseLeftColor = PixelGetColor($caseLeft[0], $caseLeft[1])
-	$counterPicker = $counterPicker + 1
-	Sleep(10)
-Until $counterPicker = 20
-
-MouseMove($mouseTemp[0], $mouseTemp[1], 0)
-
-;== Save Preset
-If (MsgBox($MB_YESNO, "Save Preset", "Would you like to save these parameters as a preset?") = 6) Then
 	SavePreset()
-EndIf
 
-MsgBox($MB_OK, "Pop Now Bot", "Set up complete! Press the 'Home' key to start and stop the program. Press the 'Escape' key to close or kill the program." & @CRLF & @CRLF & "Happy hunting!")
+	MsgBox($MB_OK, "Pop Now Bot", "Set up complete! Press the 'Home' key to start and stop the program. Press the 'Escape' key to close or kill the program." & @CRLF & @CRLF & "Happy hunting!")
 
-While 1
-	ToolTip("Pop Now Bot" & @CRLF & @CRLF & @CRLF & "Home to start" & @CRLF & "Escape to quit")
-			Sleep(50)
-WEnd
+	While 1
+		ToolTip("Pop Now Bot" & @CRLF & @CRLF & @CRLF & "Home to start" & @CRLF & "Escape to quit")
+		Sleep(50)
+	WEnd
+EndFunc ;== Initiate
+
+Func ShowParameters()
+	$mouseTemp = MouseGetPos()
+	Local $counterPreset = 0
+
+	Do
+		MouseMove($box1[0], $box1[1])
+		ToolTip("Box position 1")
+		$counterPreset = $counterPreset + 1
+		Sleep(1)
+	Until $counterPreset = 50
+	ToolTip("")
+	$counterPreset = 0
+
+	Do
+		MouseMove($box2[0], $box2[1])
+		ToolTip("Box position 2")
+		$counterPreset = $counterPreset + 1
+		Sleep(1)
+	Until $counterPreset = 50
+	ToolTip("")
+	$counterPreset = 0
+
+	Do
+		MouseMove($bottom[0], $bottom[1])
+		ToolTip("Case position")
+		$counterPreset = $counterPreset + 1
+		Sleep(1)
+	Until $counterPreset = 50
+	ToolTip("")
+	$counterPreset = 0
+
+	Do
+		MouseMove($error[0], $error[1])
+		ToolTip("Error position")
+		$counterPreset = $counterPreset + 1
+		Sleep(1)
+	Until $counterPreset = 50
+	ToolTip("")
+	$counterPreset = 0
+
+	Do
+		MouseMove($next[0], $next[1])
+		ToolTip("Next button position")
+		$counterPreset = $counterPreset + 1
+		Sleep(1)
+	Until $counterPreset = 50
+	ToolTip("")
+	$counterPreset = 0
+
+	Do
+		MouseMove($nextButton[0], $nextButton[1])
+		ToolTip("Next click position")
+		$counterPreset = $counterPreset + 1
+		Sleep(1)
+	Until $counterPreset = 50
+	ToolTip("")
+	$counterPreset = 0
+
+	Do
+		MouseMove($pickButton[0], $pickButton[1])
+		ToolTip("Pick button position")
+		$pickColor = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
+		;== Error message location
+		$errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
+		;== Next loaded location
+		$nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
+		;== Case in position location
+		$caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + 	$bottomOffset, $bottom[1] + $bottomOffset)
+		$caseColor = PixelGetColor($bottom[0], $bottom[1])
+		;== Left of case color
+		$caseLeftColor = PixelGetColor($caseLeft[0], $caseLeft[1])
+		$counterPreset = $counterPreset + 1
+		Sleep(1)
+	Until $counterPreset = 50
+	ToolTip("")
+	MouseMove($mouseTemp[0], $mouseTemp[1])
+
+	GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
+	;$colorCase = "0x" & Hex(PixelGetColor($mousePos[0], $mousePos[1]), 6)
+    GUISetBkColor($iColorBox)
+	$textRGB = _ColorGetRGB($iColorBox)
+
+	$brightText = GUICtrlCreateLabel("Selected box color" & @CRLF & @CRLF & "Close this window to proceed", 10, 10)
+	
+	If $textRGB[0] < 128 or $textRGB[1] < 128 or $textRGB[2] < 128 Then
+	GUICtrlSetColor($brightText, 0xFFFFFF)
+	EndIf
+
+    GUISetState(@SW_SHOW)
+
+    ; Loop until the user exits.
+    While 1
+            Switch GUIGetMsg()
+                    Case $GUI_EVENT_CLOSE
+                            ExitLoop
+            EndSwitch
+    WEnd
+
+	GUIDelete()
+EndFunc ;== ShowParameters
 	
 Func TogglePause()
 	$g_bPaused = Not $g_bPaused
@@ -566,12 +644,19 @@ Func LoadPreset()
 	$pickButton[1]	= FileReadLine($rFileHandle, 14)
 	$iColorBox		= FileReadLine($rFileHandle, 15)
 
-	MsgBox($MB_SYSTEMMODAL, "Loaded Content", "Top Left of boxes [x] = " & $box1[0] & @CRLF & "Top Left of boxes [y] = " & $box1[1] & @CRLF & "Bottom Right of boxes [x] = " & $box2[0] & @CRLF & "Bottom Right of boxes [y] = " & $box2[1] & @CRLF & "Lowest point of case [x] = " & $bottom[0] & @CRLF & "Lowest point of case [y] = " & $bottom[1] & @CRLF & "Center of error banner area [x] = " & $error[0] & @CRLF & "Center of error banner area [y] = " & $error[1] & @CRLF & "Center of next button [x] = " & $next[0] & @CRLF & "Center of next button [y] = " & $next[1] & @CRLF & "Bottom quarter of next button [x] = " & $nextButton[0] & @CRLF & "Bottom quarter of next button [y] = " & $nextButton[1] & @CRLF & "Location of 'Pick One' button [x] = " & $pickButton[0] & @CRLF & "Location of 'Pick One' button [y] = " & $pickButton[1] & @CRLF & "Color of Pop Now figure = 0x" & Hex($iColorBox, 6))
+	;MsgBox($MB_SYSTEMMODAL, "Loaded Content", "Top Left of boxes [x] = " & $box1[0] & @CRLF & "Top Left of boxes [y] = " & $box1[1] & @CRLF & "Bottom Right of boxes [x] = " & $box2[0] & @CRLF & "Bottom Right of boxes [y] = " & $box2[1] & @CRLF & "Lowest point of case [x] = " & $bottom[0] & @CRLF & "Lowest point of case [y] = " & $bottom[1] & @CRLF & "Center of error banner area [x] = " & $error[0] & @CRLF & "Center of error banner area [y] = " & $error[1] & @CRLF & "Center of next button [x] = " & $next[0] & @CRLF & "Center of next button [y] = " & $next[1] & @CRLF & "Bottom quarter of next button [x] = " & $nextButton[0] & @CRLF & "Bottom quarter of next button [y] = " & $nextButton[1] & @CRLF & "Location of 'Pick One' button [x] = " & $pickButton[0] & @CRLF & "Location of 'Pick One' button [y] = " & $pickButton[1] & @CRLF & "Color of Pop Now figure = 0x" & Hex($iColorBox, 6))
 
 	FileClose($rFileHandle)
+
+	ShowParameters()
 EndFunc ;== LoadPreset
 
 Func SavePreset()
+	;== Ask
+	If (MsgBox($MB_YESNO, "Save Preset", "Would you like to save these parameters as a preset?") = 7) Then
+		Return
+	EndIf
+
 	$sNewPreset = InputBox("Save Preset", "Enter the name of the preset.")
 
 	; Create file
@@ -608,44 +693,42 @@ Func SavePreset()
     FileClose($sFileName)
 
 	MsgBox($MB_OK, "Save Preset", "Preset saved." & @CRLF & "File location: " & FileGetLongName($sFileName))
-
 EndFunc ;== SavePreset
 
 Func Mark_Rect()
-
     Local $aMouse_Pos, $aMask, $aM_Mask, $iTemp
     Local $UserDLL = DllOpen("user32.dll")
 
-; Wait until mouse button pressed
+	; Wait until mouse button pressed
     While Not _IsPressed("01", $UserDLL)
 		ToolTip("Pop Now Bot" & @CRLF & @CRLF & "Click and Drag to select area")
         Sleep(50)
     WEnd
 
-; Get first mouse position
+	; Get first mouse position
     $aMouse_Pos = MouseGetPos()
     $iX1 = $aMouse_Pos[0]
     $iY1 = $aMouse_Pos[1]
 
-    $hRectangle_GUI = GUICreate("", @DesktopWidth, @DesktopHeight, 0, 0, $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
+    Global $hRectangle_GUI = GUICreate("", @DesktopWidth, @DesktopHeight, 0, 0, $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
     GUISetBkColor(0x000000)
 
-; Draw rectangle while mouse button pressed
+	; Draw rectangle while mouse button pressed
     While _IsPressed("01", $UserDLL)
 		ToolTip("Pop Now Bot" & @CRLF & @CRLF & "Selecting area")
         $aMouse_Pos = MouseGetPos()
 
         $aM_Mask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", 0, "long", 0, "long", 0, "long", 0)
-; Bottom of rectangle
+	; Bottom of rectangle
         $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $iX1, "long", $aMouse_Pos[1], "long", $aMouse_Pos[0], "long", $aMouse_Pos[1] + 1)
         DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
-; Left of rectangle
+	; Left of rectangle
         $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $iX1, "long", $iY1, "long", $iX1 + 1, "long", $aMouse_Pos[1])
         DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
-; Top of rectangle
+	; Top of rectangle
         $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $iX1 + 1, "long", $iY1 + 1, "long", $aMouse_Pos[0], "long", $iY1)
         DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
-; Right of rectangle
+	; Right of rectangle
         $aMask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", $aMouse_Pos[0], "long", $iY1, "long", $aMouse_Pos[0] + 1, "long", $aMouse_Pos[1])
         DllCall("gdi32.dll", "long", "CombineRgn", "long", $aM_Mask[0], "long", $aMask[0], "long", $aM_Mask[0], "int", 2)
         DllCall("user32.dll", "long", "SetWindowRgn", "hwnd", $hRectangle_GUI, "long", $aM_Mask[0], "int", 1)
@@ -656,11 +739,11 @@ Func Mark_Rect()
 
     WEnd
 	ToolTip("")
-; Get second mouse position
+	; Get second mouse position
     $iX2 = $aMouse_Pos[0]
     $iY2 = $aMouse_Pos[1]
 
-; Set in correct order if required
+	; Set in correct order if required
     If $iX2 < $iX1 Then
         $iTemp = $iX1
         $iX1 = $iX2
@@ -674,7 +757,6 @@ Func Mark_Rect()
 
     GUIDelete($hRectangle_GUI)
     DllClose($UserDLL)
-
 EndFunc ;== Mark_Rect
 
 Func Terminate()
