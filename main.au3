@@ -1,4 +1,4 @@
-;version 19
+;version 20
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -11,7 +11,7 @@
 
 Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $mousePos = [0,0]
 Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0]
-Global $iTimeout = 10
+Global $iTimeout = 10, $bottomOffset = 10
 Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
 Global $casesPassed = 0, $resumeAfterFind = 0
 Global $errorChecksum, $nextChecksum, $caseChecksum, $caseColor
@@ -46,7 +46,7 @@ $errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $
 ;== Next loaded location
 $nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
 ;== Case in position location
-$caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)
+$caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset)
 $caseColor = PixelGetColor($bottom[0], $bottom[1])
 ;== Left of case color
 $caseLeftColor = PixelGetColor($caseLeft[0], $caseLeft[1])
@@ -331,35 +331,44 @@ Func Setup()
 	$continue = 10
 	;== Set position of bottom of case
 	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Case Location", "Position your cursor on a unique color on the bottom of the case. Position will be saved in " & $iTimeout & " seconds or click cancel.",$iTimeout) = 2) Then
+		If (MsgBox($MB_OKCANCEL, "Case Location", "Position your cursor on a unique color on the bottom of the case. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 			Terminate()
 		EndIf
 		$bottom = MouseGetPos()
 
-		GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
+		$sCasePic_Path = @TempDir & "\Case.bmp"
+		_ScreenCapture_Capture($sCasePic_Path, $bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset, False)
+
+		$hCaseGUI = GUICreate("", $bottomOffset * 20, $bottomOffset * 20 + 110) ; will create a dialog box that when displayed is centered
 		$colorCase = "0x" & Hex(PixelGetColor($bottom[0], $bottom[1]), 6)
-    	GUISetBkColor($colorCase)
-		$textRGB = _ColorGetRGB($colorCase)
-		
-		$brightText = GUICtrlCreateLabel("Selected case color" & @CRLF & @CRLF & "Close this window to proceed", 10, 10)
 
-		If $textRGB[0] < 128 or $textRGB[1] < 128 or $textRGB[2] < 128 Then
-		GUICtrlSetColor($brightText, 0xFFFFFF)
-		EndIf
+		$hCasePic = GUICtrlCreatePic($sCasePic_Path, $bottomOffset * 9, $bottomOffset * 9, $bottomOffset * 2, $bottomOffset * 2)
 
-    	GUISetState(@SW_SHOW)
+		; Display image
 
-    	; Loop until the user exits.
-    	While 1
-    	        Switch GUIGetMsg()
-    	                Case $GUI_EVENT_CLOSE
-    	                        ExitLoop
-    	        EndSwitch
-    	WEnd
+		$cancelButton = GUICtrlCreateButton("Cancel", 10, $bottomOffset * 21, ($bottomOffset * 20) - 20, 25)
 
-		GUIDelete()
+		$retryButton = GUICtrlCreateButton("Try Again", 10, $bottomOffset * 21 + 30, ($bottomOffset * 20) - 20, 25)
 
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Case Location", "Position set to x = " & $bottom[0] & ", y = " & $bottom[1] & ". Continue?")
+		$contButton = GUICtrlCreateButton("Continue", 10, $bottomOffset * 21 + 60, ($bottomOffset * 20) - 20, 25)
+
+		GUISetState()
+		WinActivate("Selected Case Position")
+
+		While 1
+			Switch GUIGetMsg()
+				Case $GUI_EVENT_CLOSE, $cancelButton
+					Terminate()
+				Case $contButton
+					$continue = 11
+					GUIDelete()
+					ExitLoop
+				Case $retryButton
+					$continue = 10
+					GUIDelete()
+					ExitLoop
+			EndSwitch
+		WEnd
 	WEnd
 	;== If responce is 'Cancel', quit program
 	If ($continue = 2) Then
