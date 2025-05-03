@@ -1,7 +1,9 @@
-;version 14
+;version 15
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
+#include <ScreenCapture.au3>
+#include <GUIConstantsEx.au3>
 
 Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $mousePos = [0,0]
 Global $boxTL = [0,0], $boxBR = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0]
@@ -144,7 +146,7 @@ Else
 	Terminate()
 EndIf ;== Finish setup *************************************************************************
 
-Sleep(500)
+Sleep(100)
 
 $mouseTemp = MouseGetPos()
 MouseMove(0, 0, 0)
@@ -160,7 +162,7 @@ $boxTLcolor = PixelGetColor($boxTL[0], $boxTL[1])
 
 MouseMove($mouseTemp[0], $mouseTemp[1], 0)
 
-Sleep(500)
+Sleep(50)
 
 ;== Save Preset
 If (MsgBox($MB_YESNO, "Save Preset", "Would you like to save these parameters as a preset?") = 6) Then
@@ -170,7 +172,7 @@ EndIf
 MsgBox($MB_OK, "Pop Now Bot", "Set up complete! Press the 'Home' key to start and stop the program. Press the 'Escape' key to close or kill the program." & @CRLF & @CRLF & "Happy hunting!")
 
 While 1
-	ToolTip("Pop Now Bot" & @CRLF & "PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
+	ToolTip("Pop Now Bot" & @CRLF & @CRLF & @CRLF & "Home to start" & @CRLF & "Escape to quit")
 			Sleep(50)
 WEnd
 	
@@ -188,54 +190,98 @@ Func TogglePause()
 			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
 			Sleep(50)
 		EndIf
-	Wend ;== Program paused
+	WEnd ;== Program paused
 
 	;== Program unpaused
 	While $g_bPaused
 		If $casesPassed = 1 Then
-			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
+			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 			Sleep(50)
 		Else
-			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
+			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 			Sleep(50)
 		EndIf
 
 		;== Next check
 		;== Next button loaded
+		;ToolTip("Next check")
+		;Sleep(100)
 		If ($nextChecksum = PixelChecksum($next[0] - 10, $next[1] - 10, $next[0] + 10, $next[1] + 10)) Then
 			;== Case check
 			;== Case in position
+			;ToolTip("Case check")
+			;Sleep(100)
 			If ($caseChecksum = PixelChecksum($bottom[0] - 1, $bottom[1] - 1, $bottom[0] + 1, $bottom[1] + 1)) Then
 				;== Boxes color check
 				Sleep(100)
 				$boxes = PixelSearch($boxTL[0], $boxTL[1], $boxBR[0], $boxBR[1], $iColorBox, 0)
 				;== Box check
 				;== Box available
+				;ToolTip("Box check")
+				;Sleep(100)
 				If IsArray($boxes) Then
 					;== Mouse clicks pick button
 					MouseMove($pickButton[0], $pickButton[1], 0)
+
+					If $casesPassed = 1 Then
+						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						Sleep(50)
+					Else
+						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						Sleep(50)
+					EndIf
+
 					MouseClick($MOUSE_CLICK_LEFT)
 					$errorPresent = 0
 					$errorTimer = 0
 
-					;== False positive check
-					While ($errorTimer <= 100)
-						ToolTip($errorTimer & "% Lie Detecting")
-						Sleep(20)
-						ToolTip($errorTimer & "% Lie Detecting")
-						Sleep(20)
-						ToolTip($errorTimer & "% Lie Detecting")
-						;== If no error message, errorPresent stays 0
-						If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
-							$errorTimer = $errorTimer + 2
-						;== If error message, errorPresent counts up
-						Else
-							$errorPresent = $errorPresent + 1
-							$errorTimer = $errorTimer + 2
-						EndIf
-						$g_bPaused = 0
-						Sleep(10)
-					Wend
+
+					;== False positive check ***********************************************************
+					While ($errorTimer <= 1000)
+						While ($errorTimer <= 30)
+							ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+							;== Color of pick button when it is present with the cursor over it
+							$pickColor = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
+							$errorTimer = $errorTimer + 3
+							Sleep(50)
+						WEnd
+						While ($errorTimer <= 999)
+							If (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickColor) Then
+								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+								;== If no error message, errorPresent stays 0
+								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
+									$errorTimer = $errorTimer + 1
+								;== If error message, errorPresent counts up
+								Else
+									$errorPresent = $errorPresent + 1
+									$errorTimer = $errorTimer + 1
+								EndIf
+							ElseIf (Hex(PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5), 6) = "FFFFFF") Then
+								$pickColor = "FF00FF"
+								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+								;== If no error message, errorPresent stays 0
+								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
+									$errorTimer = $errorTimer + 10
+								;== If error message, errorPresent counts up
+								Else
+									$errorPresent = $errorPresent + 1
+									$errorTimer = $errorTimer + 10
+								EndIf
+							Else
+								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+								;== If no error message, errorPresent stays 0
+								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
+									$errorTimer = $errorTimer + 40
+								;== If error message, errorPresent counts up
+								Else
+									$errorPresent = $errorPresent + 1
+									$errorTimer = $errorTimer + 40
+								EndIf
+							EndIf
+							Sleep(50)
+						WEnd
+						Sleep(50)
+					WEnd
 					;== Error is present, false positive
 					If ($errorPresent > 0) Then
 						$g_bPaused = 1
@@ -243,9 +289,9 @@ Func TogglePause()
 						;== Program continues
 						While $resumeCounter > 0
 							ToolTip("LIE DETECTED" & @CRLF & "Resuming search in " & Floor($resumeCounter / 100) + 1)
-							$resumeCounter = $resumeCounter - 1
-							Sleep(1)
-						Wend
+							$resumeCounter = $resumeCounter - 5
+							Sleep(50)
+						WEnd
 						$casesPassed = $casesPassed + 1
 						MouseMove($nextButton[0], $nextButton[1], 0)
 						MouseClick($MOUSE_CLICK_LEFT)
@@ -262,11 +308,20 @@ Func TogglePause()
 								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " cases!")
 							EndIf
 							Sleep(50)
-						Wend
+						WEnd
 					EndIf
 				;== Box unavailable
 				Else
 					MouseMove($nextButton[0], $nextButton[1], 0)
+
+					If $casesPassed = 1 Then
+						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						Sleep(50)
+					Else
+						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						Sleep(50)
+					EndIf
+
 					$ShouldClick = 1
 					;== Mouse clicks once
 					While $ShouldClick = 1
