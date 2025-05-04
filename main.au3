@@ -1,4 +1,4 @@
-;version 25.1
+;version 26
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -10,7 +10,7 @@
 #Include <Misc.au3>
 
 Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 500, $successVolume = 10, $soundPlayed = 0
-Global $refreshTimer = 1, $timeoutTimer = 400, $timeoutReset = 400
+Global $refreshTimer = 1, $timeoutTimer = 200, $timeoutReset = 200
 Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorBlack = 0x000000, $iColorWhite = 0xFFFFFF, $iColorMagenta = 0xFF00FF, $iColorCase, $iColorCaseLeft, $iColorPick
 Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0]
 Global $iTimeout = 10, $bottomOffset = 10, $nextOffset = 15, $errorOffset = 10, $pickOffset = 5
@@ -57,11 +57,14 @@ EndFunc ;== Initiate
 Func ShowParameters()
 	$mouseTemp = MouseGetPos()
 	Local $counterPreset = 0
+	Local $num1 = 20
+	Local $num2 = 40 ; error timer
+	Local $num3 = 10 ; pick timer
 
 	Do
 		MouseMove($box1[0], $box1[1])
 		ToolTip("Box position 1")
-		$counterPreset = $counterPreset + 10
+		$counterPreset = $counterPreset + $num1
 	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
@@ -69,7 +72,7 @@ Func ShowParameters()
 	Do
 		MouseMove($box2[0], $box2[1])
 		ToolTip("Box position 2")
-		$counterPreset = $counterPreset + 10
+		$counterPreset = $counterPreset + $num1
 	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
@@ -77,7 +80,7 @@ Func ShowParameters()
 	Do
 		MouseMove($bottom[0], $bottom[1])
 		ToolTip("Case position")
-		$counterPreset = $counterPreset + 10
+		$counterPreset = $counterPreset + $num1
 	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
@@ -85,7 +88,7 @@ Func ShowParameters()
 	Do
 		MouseMove($error[0], $error[1])
 		ToolTip("Error position")
-		$counterPreset = $counterPreset + 20
+		$counterPreset = $counterPreset + $num2
 	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
@@ -93,7 +96,7 @@ Func ShowParameters()
 	Do
 		MouseMove($next[0], $next[1])
 		ToolTip("Next button position")
-		$counterPreset = $counterPreset + 10
+		$counterPreset = $counterPreset + $num1
 	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
@@ -101,7 +104,7 @@ Func ShowParameters()
 	Do
 		MouseMove($nextButton[0], $nextButton[1])
 		ToolTip("Next click position")
-		$counterPreset = $counterPreset + 10
+		$counterPreset = $counterPreset + $num1
 	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
@@ -119,7 +122,7 @@ Func ShowParameters()
 		$iColorCase = PixelGetColor($bottom[0], $bottom[1])
 		;== Left of case color
 		$iColorCaseLeft = PixelGetColor($caseLeft[0], $caseLeft[1])
-		$counterPreset = $counterPreset + 10
+		$counterPreset = $counterPreset + $num3
 		Sleep(1)
 	Until $counterPreset >= $nextParameter
 	ToolTip("")
@@ -189,9 +192,11 @@ Func PreDrop()
 	ElseIf $confirm = 7 Then
 		Return 1
 	EndIf
-EndFunc
+EndFunc ;== PreDrop
 
 Func TogglePause()
+	;Local $backButton = 0
+	Local $title
 	$g_bPaused = Not $g_bPaused
 	If $resumeAfterFind = 1 Then
 		SoundSetWaveVolume($successVolume)
@@ -222,24 +227,30 @@ Func TogglePause()
 			Sleep(50)
 		EndIf
 
+		;Checks if the Pick button is white which most likely means the page timed out
+		While PixelGetColor($pickButton[0], $pickButton[1]) = $iColorWhite and $timeoutTimer > 0
+			ToolTip("Pop Bot" & @CRLF & Floor($timeoutTimer / 20) + 1 & " until timeout refresh")
+			$timeoutTimer = $timeoutTimer - 1
+			Sleep(50)
+		WEnd
+		MsgBox(0, "", WinGetTitle("[ACTIVE]"))
+		If $timeoutTimer < 1 and WinGetTitle("[ACTIVE]") = $title Then
+			Send("{F5}")
+			$timeoutTimer = $timeoutReset + 200
+			Sleep(50)
+		ElseIf $timeoutTimer < 1 and WinGetTitle("[ACTIVE]") = not $title Then
+			Send("!{LEFT}")
+			$timeoutTimer = $timeoutReset
+			Sleep(50)
+		Else
+			$timeoutTimer = $timeoutReset
+			Sleep(50)
+		EndIf
+
 		;== Next check
 		;== Next button loaded
 		;ToolTip("Next check")
 		;Sleep(100)
-
-		While PixelGetColor($pickButton[0], $pickButton[1]) = $iColorWhite and $timeoutTimer > 0
-			ToolTip("Pop Bot" & @CRLF & Floor($timeoutTimer / 20) & " until timeout refresh")
-			$timeoutTimer = $timeoutTimer - 1
-			Sleep(50)
-		WEnd
-
-		If $timeoutTimer < 1 Then
-			Send("{F5}")
-			$timeoutTimer = $timeoutReset
-		Else
-			$timeoutTimer = $timeoutReset
-		EndIf
-
 		If ($nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)) Then
 			;== Case check
 			;== Case in position
@@ -257,7 +268,8 @@ Func TogglePause()
 					;== Mouse clicks pick button
 					MouseMove($pickButton[0], $pickButton[1], 0)
 					MouseClick($MOUSE_CLICK_LEFT)
-
+					$title = WinGetTitle("[ACTIVE]")
+					MsgBox(0, "", $title)
 					If $casesPassed = 1 Then
 						ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
