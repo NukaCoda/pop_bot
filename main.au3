@@ -10,10 +10,10 @@
 #Include <Misc.au3>
 
 Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 500, $successVolume = 10, $soundPlayed = 0
-Global $refreshTimer = 1 ;in minutes (0.5 = 30 seconds)
+Global $refreshTimer = 1, $timeoutTimer = 400, $timeoutReset = 400
 Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorBlack = 0x000000, $iColorWhite = 0xFFFFFF, $iColorMagenta = 0xFF00FF, $iColorCase, $iColorCaseLeft, $iColorPick
 Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0]
-Global $iTimeout = 10, $bottomOffset = 10
+Global $iTimeout = 10, $bottomOffset = 10, $nextOffset = 15, $errorOffset = 10, $pickOffset = 5
 Global $errorChecksum, $nextChecksum, $caseChecksum
 Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path, $hRectangle_GUI
 
@@ -109,11 +109,11 @@ Func ShowParameters()
 	Do
 		MouseMove($pickButton[0], $pickButton[1])
 		ToolTip("Pick button position")
-		$iColorPick = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
+		$iColorPick = PixelGetColor($pickButton[0], $pickButton[1])
 		;== Error message location
-		$errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
+		$errorChecksum = PixelChecksum($error[0] - $errorOffset, $error[1] - $errorOffset, $error[0] + $errorOffset, $error[1] + $errorOffset)
 		;== Next loaded location
-		$nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
+		$nextChecksum = PixelChecksum($next[0] - $nextOffset, $next[1] - $nextOffset, $next[0] + $nextOffset, $next[1] + $nextOffset)
 		;== Case in position location
 		$caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + 	$bottomOffset, $bottom[1] + $bottomOffset)
 		$iColorCase = PixelGetColor($bottom[0], $bottom[1])
@@ -173,10 +173,10 @@ Func PreDrop()
 				$title = WinGetTitle("POP NOW", "")
 			EndIf
 
-			If Int($refresh * 50 / 100000) = 1 Then
-				ToolTip("Pop Bot" & @CRLF & Int($refresh * 50 / 100000) & " second until next refresh")
+			If Floor($refresh * 50 / 100000) = 1 Then
+				ToolTip("Pop Bot" & @CRLF & Floor($refresh * 50 / 100000) & " second until next refresh")
 			Else
-				ToolTip("Pop Bot" & @CRLF & Int($refresh * 50 / 100000) & " seconds until next refresh")
+				ToolTip("Pop Bot" & @CRLF & Floor($refresh * 50 / 100000) & " seconds until next refresh")
 			EndIf
 			Sleep(50)
 
@@ -226,6 +226,20 @@ Func TogglePause()
 		;== Next button loaded
 		;ToolTip("Next check")
 		;Sleep(100)
+
+		While PixelGetColor($pickButton[0], $pickButton[1]) = $iColorWhite and $timeoutTimer > 0
+			ToolTip("Pop Bot" & @CRLF & Floor($timeoutTimer / 20) & " until timeout refresh")
+			$timeoutTimer = $timeoutTimer - 1
+			Sleep(50)
+		WEnd
+
+		If $timeoutTimer < 1 Then
+			Send("{F5}")
+			$timeoutTimer = $timeoutReset
+		Else
+			$timeoutTimer = $timeoutReset
+		EndIf
+
 		If ($nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)) Then
 			;== Case check
 			;== Case in position
@@ -306,10 +320,8 @@ Func TogglePause()
 								Sleep(50)
 							EndIf
 							$errorTimer = $errorTimer + 20
-							Sleep(50)
 						WEnd
 						$errorTimer = $errorTimer + 20
-						Sleep(50)
 					WEnd
 					;== Error is present, false positive
 					If ($errorPresent > 0) Then
