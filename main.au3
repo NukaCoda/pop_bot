@@ -1,4 +1,4 @@
-;version 23.2
+;version 23.3
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -9,7 +9,7 @@
 #include <Color.au3>
 #Include <Misc.au3>
 
-Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 50
+Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 50, $successVolume = 10
 Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorCase, $iColorCaseLeft, $iColorPick
 Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0]
 Global $iTimeout = 10, $bottomOffset = 10
@@ -119,7 +119,6 @@ Func ShowParameters()
 	MouseMove($mouseTemp[0], $mouseTemp[1])
 
 	GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
-	;$colorCase = "0x" & Hex(PixelGetColor($mousePos[0], $mousePos[1]), 6)
     GUISetBkColor($iColorBox)
 	$textRGB = _ColorGetRGB($iColorBox)
 
@@ -288,7 +287,7 @@ Func TogglePause()
 							EndIf
 							If $soundPlayed = 0 Then
                                 $soundPlayed = 1
-                                SoundSetWaveVolume(30)
+                                SoundSetWaveVolume($successVolume)
 							    SoundPlay("Success Sound\Champions.wav", 0)
 							EndIf
                             Sleep(50)
@@ -325,22 +324,14 @@ Func TogglePause()
 						EndIF
 					WEnd
 					$boxes = 0
-					;$case = 0
-					;$loaded = 0
 				EndIf ;== Box check
 				$boxes = 0
-				;$case = 0
-				;$loaded = 0
 			;== Case not in position
 			EndIf ;== Case check
 			$boxes = 0
-			;$case = 0
-			;$loaded = 0
 		;== Next button not loaded
 		EndIf ;== Next check
 		$boxes = 0
-		;$case = 0
-		;$loaded = 0
 	WEnd ;== Program unpaused
 	ToolTip("")
 EndFunc ;== TogglePause
@@ -371,7 +362,6 @@ Func Setup()
 		            _ScreenCapture_Capture($sBMP_Path, $iX1, $iY1, $iX2, $iY2, False)
 		    ; Display image
 		            $hBitmap_GUI = GUICreate("Selected Rectangle", $iX2 - $iX1 + 1, $iY2 - $iY1 + 45, -1, -1)
-		            ;$hPic = 
 					GUICtrlCreatePic($sBMP_Path, 0, 0, $iX2 - $iX1 + 1, $iY2 - $iY1 + 1)
 		            $cancelButton = GUICtrlCreateButton("Cancel", 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
 					$retryButton = GUICtrlCreateButton("Try Again", (($iX2 - $iX1) / 3) + 5, $iY2 - $iY1 + 10, (($iX2 - $iX1) / 3) - 10, 25)
@@ -400,7 +390,7 @@ Func Setup()
 		$box2[0] = $iX2
 		$box2[1] = $iY2
 	Wend
-	; -------------
+
 	If $box1[0] < $box2[0] Then
 		$caseLeft[0] = $box1[0]
 		$caseLeft[1] = $box1[1]
@@ -421,11 +411,9 @@ Func Setup()
 		$sCasePic_Path = @TempDir & "\Case.bmp"
 		_ScreenCapture_Capture($sCasePic_Path, $bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset, False)
 
-		;$hCaseGUI = 
 		GUICreate("", $bottomOffset * 20, $bottomOffset * 20 + 110) ; will create a dialog box that when displayed is centered
 		$colorCase = "0x" & Hex(PixelGetColor($bottom[0], $bottom[1]), 6)
 
-		;$hCasePic = 
 		GUICtrlCreatePic($sCasePic_Path, $bottomOffset * 9, $bottomOffset * 9, $bottomOffset * 2, $bottomOffset * 2)
 
 		; Display image
@@ -454,7 +442,7 @@ Func Setup()
 			EndSwitch
 		WEnd
 	WEnd
-	;== If responce is 'Cancel', quit program
+	;== If response is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -469,7 +457,7 @@ Func Setup()
 		$error = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Top left of error message position set to x = " & $error[0] & ", y = " & $error[1] & ". Continue?")
 	WEnd
-	;== If responce is 'Cancel', quit program
+	;== If response is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -484,7 +472,7 @@ Func Setup()
 		$next = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Next Case Checker", "Position set to x = " & $next[0] & ", y = " & $next[1] & ". Continue?")
 	WEnd
-	;== If responce is 'Cancel', quit program
+	;== If response is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -499,7 +487,7 @@ Func Setup()
 		$nextButton = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Next Case' button set to x = " & $nextButton[0] & ", y = " & $nextButton[1] & ". Continue?")
 	WEnd
-	;== If responce is 'Cancel', quit program
+	;== If response is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -514,7 +502,7 @@ Func Setup()
 		$pickButton = MouseGetPos()
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Pick One to Shake' button set to x = " & $pickButton[0] & ", y = " & $pickButton[1] & ". Continue?")
 	WEnd
-	;== If responce is 'Cancel', quit program
+	;== If response is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -554,7 +542,7 @@ Func Setup()
 		$iColorBox = PixelGetColor($mousePos[0], $mousePos[1])
 		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Color Selection", "Hex color code for Pop Now box color is 0x" & Hex($iColorBox, 6) & ". Continue?")
 	WEnd
-	;== If responce is 'Cancel', quit program
+	;== If response is 'Cancel', quit program
 	If ($continue = 2) Then
 		Terminate()
 	EndIf
@@ -565,7 +553,7 @@ Func LoadPreset()
 	Do
 		GUICreate("Pop Now Bot Presets", 300, 360)
 		Local $idPresetList = GUICtrlCreateList("", 25, 25, 250, 250)
-		Local $idButton_Confirm = GUICtrlCreateButton("Confirm preset", 25, 275, 250, 25)
+		Local $idButton_Confirm = GUICtrlCreateButton("Load preset", 25, 275, 250, 25)
 		Local $idButton_Delete = GUICtrlCreateButton("Delete Preset", 25, 310, 250, 25)
 
 		Local $hSearch = FileFindFirstFile("Presets\*.txt")
@@ -613,8 +601,6 @@ Func LoadPreset()
 		GuiDelete()
 	Until $refreshGUI = 0
 
-	;$rFileName = @WorkingDir & "\Presets\" & $lPresetName & ".txt"
-
 	$rFileHandle = FileOpen($rFileName, $FO_READ)
 
 	If $rFileHandle = -1 Then
@@ -638,8 +624,6 @@ Func LoadPreset()
 	$pickButton[1]	= FileReadLine($rFileHandle, 14)
 	$iColorBox		= FileReadLine($rFileHandle, 15)
 
-	;MsgBox($MB_SYSTEMMODAL, "Loaded Content", "Top Left of boxes [x] = " & $box1[0] & @CRLF & "Top Left of boxes [y] = " & $box1[1] & @CRLF & "Bottom Right of boxes [x] = " & $box2[0] & @CRLF & "Bottom Right of boxes [y] = " & $box2[1] & @CRLF & "Lowest point of case [x] = " & $bottom[0] & @CRLF & "Lowest point of case [y] = " & $bottom[1] & @CRLF & "Center of error banner area [x] = " & $error[0] & @CRLF & "Center of error banner area [y] = " & $error[1] & @CRLF & "Center of next button [x] = " & $next[0] & @CRLF & "Center of next button [y] = " & $next[1] & @CRLF & "Bottom quarter of next button [x] = " & $nextButton[0] & @CRLF & "Bottom quarter of next button [y] = " & $nextButton[1] & @CRLF & "Location of 'Pick One' button [x] = " & $pickButton[0] & @CRLF & "Location of 'Pick One' button [y] = " & $pickButton[1] & @CRLF & "Color of Pop Now figure = 0x" & Hex($iColorBox, 6))
-
 	FileClose($rFileHandle)
 
 	ShowParameters()
@@ -657,7 +641,7 @@ Func SavePreset()
     $sFileName = @WorkingDir & "\Presets\" & $sNewPreset & ".txt"
 	
 	If FileExists($sFileName) Then
-	    If (MsgBox($MB_YESNO, "File", "File already exists. Repalce old file?") = 6) Then
+	    If (MsgBox($MB_YESNO, "File", "File already exists. Replace old file?") = 6) Then
 			$hFilehandle = FileOpen($sFileName, $FO_OVERWRITE)
 		EndIf
 	EndIf
