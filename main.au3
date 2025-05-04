@@ -1,4 +1,4 @@
-;version 24
+;version 25.1
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
