@@ -1,4 +1,4 @@
-;version 23
+;version 23.2
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -9,14 +9,15 @@
 #include <Color.au3>
 #Include <Misc.au3>
 
-Global $g_bPaused = False, $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $mousePos = [0,0]
-Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0]
+Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 50
+Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorCase, $iColorCaseLeft, $iColorPick
+Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0]
 Global $iTimeout = 10, $bottomOffset = 10
-Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
-Global $casesPassed = 0, $resumeAfterFind = 0
-Global $errorChecksum, $nextChecksum, $caseChecksum, $caseColor, $caseLeftColor, $pickColor
+;Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
+Global $errorChecksum, $nextChecksum, $caseChecksum
+Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path, $hRectangle_GUI
+
 Global $debugTime = 200
-Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path
 
 HotKeySet("{HOME}", "TogglePause")
 HotKeySet("{ESC}", "Terminate")
@@ -54,8 +55,7 @@ Func ShowParameters()
 		MouseMove($box1[0], $box1[1])
 		ToolTip("Box position 1")
 		$counterPreset = $counterPreset + 1
-		Sleep(1)
-	Until $counterPreset = 50
+	Until $counterPreset = $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
@@ -63,8 +63,7 @@ Func ShowParameters()
 		MouseMove($box2[0], $box2[1])
 		ToolTip("Box position 2")
 		$counterPreset = $counterPreset + 1
-		Sleep(1)
-	Until $counterPreset = 50
+	Until $counterPreset = $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
@@ -72,8 +71,7 @@ Func ShowParameters()
 		MouseMove($bottom[0], $bottom[1])
 		ToolTip("Case position")
 		$counterPreset = $counterPreset + 1
-		Sleep(1)
-	Until $counterPreset = 50
+	Until $counterPreset = $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
@@ -81,8 +79,7 @@ Func ShowParameters()
 		MouseMove($error[0], $error[1])
 		ToolTip("Error position")
 		$counterPreset = $counterPreset + 1
-		Sleep(1)
-	Until $counterPreset = 50
+	Until $counterPreset = $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
@@ -90,8 +87,7 @@ Func ShowParameters()
 		MouseMove($next[0], $next[1])
 		ToolTip("Next button position")
 		$counterPreset = $counterPreset + 1
-		Sleep(1)
-	Until $counterPreset = 50
+	Until $counterPreset = $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
@@ -99,27 +95,26 @@ Func ShowParameters()
 		MouseMove($nextButton[0], $nextButton[1])
 		ToolTip("Next click position")
 		$counterPreset = $counterPreset + 1
-		Sleep(1)
-	Until $counterPreset = 50
+	Until $counterPreset = $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
 	Do
 		MouseMove($pickButton[0], $pickButton[1])
 		ToolTip("Pick button position")
-		$pickColor = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
+		$iColorPick = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
 		;== Error message location
 		$errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)
 		;== Next loaded location
 		$nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)
 		;== Case in position location
 		$caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + 	$bottomOffset, $bottom[1] + $bottomOffset)
-		$caseColor = PixelGetColor($bottom[0], $bottom[1])
+		$iColorCase = PixelGetColor($bottom[0], $bottom[1])
 		;== Left of case color
-		$caseLeftColor = PixelGetColor($caseLeft[0], $caseLeft[1])
+		$iColorCaseLeft = PixelGetColor($caseLeft[0], $caseLeft[1])
 		$counterPreset = $counterPreset + 1
 		Sleep(1)
-	Until $counterPreset = 50
+	Until $counterPreset = $nextParameter
 	ToolTip("")
 	MouseMove($mouseTemp[0], $mouseTemp[1])
 
@@ -219,7 +214,7 @@ Func TogglePause()
 							Sleep(50)
 						WEnd
 						While ($errorTimer <= 999)
-							If (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickColor) or  (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickLoad) Then
+							If (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $iColorPick) or  (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickLoad) Then
 								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
 								;== If no error message, errorPresent stays 0
 								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
@@ -230,7 +225,7 @@ Func TogglePause()
 									$errorTimer = $errorTimer + 1
 								EndIf
 							ElseIf (Hex(PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5), 6) = "FFFFFF") Then
-								$pickColor = "FF00FF"
+								$iColorPick = "FF00FF"
 								$pickLoad = "FF00FF"
 								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
 								;== If no error message, errorPresent stays 0
@@ -320,7 +315,7 @@ Func TogglePause()
 					;== Waits for case to move
 					While $ShouldClick = 0
 						;== Case has not moved yet
-						If $caseLeftColor = PixelGetColor($box1[0], $box1[1]) Then
+						If $iColorCaseLeft = PixelGetColor($box1[0], $box1[1]) Then
 							;== Do nothing
 						;== Case moves
 						Else
@@ -572,7 +567,7 @@ Func LoadPreset()
 		Local $idPresetList = GUICtrlCreateList("", 25, 25, 250, 250)
 		Local $idButton_Confirm = GUICtrlCreateButton("Confirm preset", 25, 275, 250, 25)
 		Local $idButton_Delete = GUICtrlCreateButton("Delete Preset", 25, 310, 250, 25)
-		
+
 		Local $hSearch = FileFindFirstFile("Presets\*.txt")
 		
 		If $hSearch = -1 Then
@@ -581,7 +576,6 @@ Func LoadPreset()
     	EndIf
 		
 		Local $sFileName = ""
-		;$iResult = 0
 		
 		While 1
     	    $sFileName = FileFindNextFile($hSearch)
@@ -710,7 +704,7 @@ Func Mark_Rect()
     $iX1 = $aMouse_Pos[0]
     $iY1 = $aMouse_Pos[1]
 
-    Global $hRectangle_GUI = GUICreate("", @DesktopWidth, @DesktopHeight, 0, 0, $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
+    $hRectangle_GUI = GUICreate("", @DesktopWidth, @DesktopHeight, 0, 0, $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
     GUISetBkColor(0x000000)
 
 	; Draw rectangle while mouse button pressed
