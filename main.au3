@@ -1,4 +1,4 @@
-;version 23.3
+;version 24
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
 #include <FileConstants.au3>
@@ -9,11 +9,11 @@
 #include <Color.au3>
 #Include <Misc.au3>
 
-Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 50, $successVolume = 10
-Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorCase, $iColorCaseLeft, $iColorPick
+Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 500, $successVolume = 10, $soundPlayed = 0
+Global $refreshTimer = 1 ;in minutes (0.5 = 30 seconds)
+Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorBlack = 0x000000, $iColorWhite = 0xFFFFFF, $iColorMagenta = 0xFF00FF, $iColorCase, $iColorCaseLeft, $iColorPick
 Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0]
 Global $iTimeout = 10, $bottomOffset = 10
-;Global $scale = _WinAPI_EnumDisplaySettings('', $ENUM_CURRENT_SETTINGS)[0] / @DesktopWidth
 Global $errorChecksum, $nextChecksum, $caseChecksum
 Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path, $hRectangle_GUI
 
@@ -25,26 +25,33 @@ HotKeySet("{ESC}", "Terminate")
 Initiate()
 
 Func Initiate()
-	$ready = MsgBox($MB_OKCANCEL, "Pop Now Bot", "This program will automatically click through pages of Pop Now figures and click the 'Pick One to Shake' button when one is available. There are some steps to ensure the program runs smoothly. Ready to set up the parameters for Pop Now Bot?")
+	Local $autoRefresh = 1
+	$ready = MsgBox($MB_OKCANCEL, "Pop Bot", "This program will automatically click through pages of Pop Now figures and click the 'Pick One to Shake' button when one is available. There are some steps to ensure the program runs smoothly. Ready to set up the parameters for Pop Bot?")
 
 	If ($ready = 1) Then
 		$presetResponse = MsgBox($MB_YESNO, "Load Preset", "Do you want to load a preset?")
 		If $presetResponse = 6 Then
 			LoadPreset()
+			$autoRefresh = PreDrop()
 		ElseIf $presetResponse = 7 Then
 			Setup()
 		EndIf
 	Else
 		Terminate()
 	EndIf
-	SavePreset()
+	If $autoRefresh = 1 Then
+		SavePreset()
 
-	MsgBox($MB_OK, "Pop Now Bot", "Set up complete! Press the 'Home' key to start and stop the program. Press the 'Escape' key to close or kill the program." & @CRLF & @CRLF & "Happy hunting!")
+		MsgBox($MB_OK, "Pop Bot", "Set up complete! Press the 'Home' key to start and stop the program. Press the 'Escape' key to close or kill the program." & @CRLF & @CRLF & "Happy hunting!")
 
-	While 1
-		ToolTip("Pop Now Bot" & @CRLF & @CRLF & @CRLF & "Home to start" & @CRLF & "Escape to quit")
-		Sleep(50)
-	WEnd
+		While 1
+			ToolTip("Pop Bot" & @CRLF & @CRLF & @CRLF & "Home to start" & @CRLF & "Escape to quit")
+			Sleep(50)
+		WEnd
+	ElseIf $autoRefresh = 0 Then
+		$g_bPaused = 0
+		TogglePause()
+	EndIf
 EndFunc ;== Initiate
 
 Func ShowParameters()
@@ -54,48 +61,48 @@ Func ShowParameters()
 	Do
 		MouseMove($box1[0], $box1[1])
 		ToolTip("Box position 1")
-		$counterPreset = $counterPreset + 1
-	Until $counterPreset = $nextParameter
+		$counterPreset = $counterPreset + 10
+	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
 	Do
 		MouseMove($box2[0], $box2[1])
 		ToolTip("Box position 2")
-		$counterPreset = $counterPreset + 1
-	Until $counterPreset = $nextParameter
+		$counterPreset = $counterPreset + 10
+	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
 	Do
 		MouseMove($bottom[0], $bottom[1])
 		ToolTip("Case position")
-		$counterPreset = $counterPreset + 1
-	Until $counterPreset = $nextParameter
+		$counterPreset = $counterPreset + 10
+	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
 	Do
 		MouseMove($error[0], $error[1])
 		ToolTip("Error position")
-		$counterPreset = $counterPreset + 1
-	Until $counterPreset = $nextParameter
+		$counterPreset = $counterPreset + 20
+	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
 	Do
 		MouseMove($next[0], $next[1])
 		ToolTip("Next button position")
-		$counterPreset = $counterPreset + 1
-	Until $counterPreset = $nextParameter
+		$counterPreset = $counterPreset + 10
+	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
 	Do
 		MouseMove($nextButton[0], $nextButton[1])
 		ToolTip("Next click position")
-		$counterPreset = $counterPreset + 1
-	Until $counterPreset = $nextParameter
+		$counterPreset = $counterPreset + 10
+	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	$counterPreset = 0
 
@@ -112,9 +119,9 @@ Func ShowParameters()
 		$iColorCase = PixelGetColor($bottom[0], $bottom[1])
 		;== Left of case color
 		$iColorCaseLeft = PixelGetColor($caseLeft[0], $caseLeft[1])
-		$counterPreset = $counterPreset + 1
+		$counterPreset = $counterPreset + 10
 		Sleep(1)
-	Until $counterPreset = $nextParameter
+	Until $counterPreset >= $nextParameter
 	ToolTip("")
 	MouseMove($mouseTemp[0], $mouseTemp[1])
 
@@ -140,20 +147,67 @@ Func ShowParameters()
 
 	GUIDelete()
 EndFunc ;== ShowParameters
-	
+
+Func PreDrop()
+	Local $nextPresent
+	Local $confirm = MsgBox($MB_YESNO, "Pop Bot", "Do you want the bot to automatically refresh the page in anticipation for a Pop Now restock?")
+
+	If $confirm = 6 Then
+		Local $title = WinGetTitle("POP NOW", "")
+		
+		$refreshTimer = InputBox("Pop Bot", "Enter number of minutes to wait in between each refresh")
+
+		Local $refresh = $refreshTimer * 120000
+
+		Do
+			If WinExists($title) and $refresh < 1 Then
+				WinActivate($title)
+				WinWaitActive($title)
+				Send("{F5}")
+				$refresh = $refreshTimer * 120000
+			EndIf
+
+			If $refresh < 0 Then
+				$title = WinGetTitle("POP MART", "")
+			ElseIf $refresh > (($refreshTimer * 120000) - 1) Then
+				$title = WinGetTitle("POP NOW", "")
+			EndIf
+
+			If Int($refresh * 50 / 100000) = 1 Then
+				ToolTip("Pop Bot" & @CRLF & Int($refresh * 50 / 100000) & " second until next refresh")
+			Else
+				ToolTip("Pop Bot" & @CRLF & Int($refresh * 50 / 100000) & " seconds until next refresh")
+			EndIf
+			Sleep(50)
+
+			$nextPresent = PixelSearch($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15, $iColorBlack, 190)
+
+			$refresh = $refresh - 125
+		Until IsArray($nextPresent)
+		Sleep(5000)
+		Return 0
+	ElseIf $confirm = 7 Then
+		Return 1
+	EndIf
+EndFunc
+
 Func TogglePause()
 	$g_bPaused = Not $g_bPaused
 	If $resumeAfterFind = 1 Then
+		SoundSetWaveVolume($successVolume)
+		SoundPlay("", 0)
+		$soundPlayed = 0
+		$g_bPaused = 0
 		$casesPassed = 0
 		$resumeAfterFind = 0
 	EndIf
 	;== Program paused
 	While $g_bPaused = 0
 		If $casesPassed = 1 Then
-			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
+			ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
 			Sleep(50)
 		Else
-			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
+			ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
 			Sleep(50)
 		EndIf
 	WEnd ;== Program paused
@@ -161,10 +215,10 @@ Func TogglePause()
 	;== Program unpaused
 	While $g_bPaused = 1
 		If $casesPassed = 1 Then
-			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+			ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 			Sleep(50)
 		Else
-			ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+			ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 			Sleep(50)
 		EndIf
 
@@ -191,10 +245,10 @@ Func TogglePause()
 					MouseClick($MOUSE_CLICK_LEFT)
 
 					If $casesPassed = 1 Then
-						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
 					Else
-						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
 					EndIf
 
@@ -204,17 +258,17 @@ Func TogglePause()
 					Local $pickLoad = 0
 
 					;== False positive check
-					While ($errorTimer <= 1000)
-						While ($errorTimer <= 50)
-							ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+					While ($errorTimer <= 10000)
+						While ($errorTimer <= 20)
+							ToolTip("Lie Detecting - " & Floor($errorTimer / 100) & "% complete")
 							;== Color of pick button when it is present with the cursor over it
 							$pickLoad = PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5)
-							$errorTimer = $errorTimer + 3
+							$errorTimer = $errorTimer + 1
 							Sleep(50)
 						WEnd
-						While ($errorTimer <= 999)
-							If (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $iColorPick) or  (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickLoad) Then
-								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+						While ($errorTimer <= 9999)
+							If (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $iColorPick) or (PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $pickLoad) and $errorPresent = 0 Then
+								ToolTip("Lie Detecting - " & Floor($errorTimer / 100) & "% complete")
 								;== If no error message, errorPresent stays 0
 								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
 									$errorTimer = $errorTimer + 1
@@ -223,28 +277,33 @@ Func TogglePause()
 									$errorPresent = $errorPresent + 1
 									$errorTimer = $errorTimer + 1
 								EndIf
-							ElseIf (Hex(PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5), 6) = "FFFFFF") Then
-								$iColorPick = "FF00FF"
-								$pickLoad = "FF00FF"
-								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+								Sleep(50)
+							ElseIf PixelGetColor($pickButton[0] + 5, $pickButton[1] - 5) = $iColorWhite and $errorPresent = 0 Then
+								$iColorPick = $iColorMagenta
+								$pickLoad = $iColorMagenta
+								ToolTip("Lie Detecting - " & Floor($errorTimer / 100) & "% complete")
 								;== If no error message, errorPresent stays 0
 								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
-									$errorTimer = $errorTimer + 5
+									$errorTimer = $errorTimer + 10
 								;== If error message, errorPresent counts up
 								Else
 									$errorPresent = $errorPresent + 1
-									$errorTimer = $errorTimer + 5
+									$errorTimer = $errorTimer + 10
 								EndIf
+								Sleep(50)
 							Else
-								ToolTip(Floor($errorTimer / 10) & "% Lie Detecting")
+								$iColorPick = $iColorMagenta
+								$pickLoad = $iColorMagenta
+								ToolTip("Lie Detecting - " & Floor($errorTimer / 100) & "% complete")
 								;== If no error message, errorPresent stays 0
 								If ($errorChecksum = PixelChecksum($error[0] - 10, $error[1] - 10, $error[0] + 10, $error[1] + 10)) Then
-									$errorTimer = $errorTimer + 50
+									$errorTimer = $errorTimer + 500
 								;== If error message, errorPresent counts up
 								Else
 									$errorPresent = $errorPresent + 1
-									$errorTimer = $errorTimer + 50
+									$errorTimer = $errorTimer + 500
 								EndIf
+								Sleep(50)
 							EndIf
 							$errorTimer = $errorTimer + 20
 							Sleep(50)
@@ -266,10 +325,10 @@ Func TogglePause()
 						MouseMove($nextButton[0], $nextButton[1], 0)
 						MouseClick($MOUSE_CLICK_LEFT)
 						If $casesPassed = 1 Then
-						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
 					Else
-						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
 					EndIf
 						Sleep(2000)
@@ -277,13 +336,12 @@ Func TogglePause()
 					Else
 						$resumeAfterFind = 1
 						$g_bPaused = 0
-                        Local $soundPlayed = 0
 						;== Program pauses until user resumes or quits
 						While $g_bPaused = 0
 							If $casesPassed = 0 Then
-								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " case!")
+								ToolTip("Pop Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " case!")
 							Else
-								ToolTip("Pop Now Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " cases!")
+								ToolTip("Pop Bot" & @CRLF & "Box found!" & @CRLF & "It only took " & $casesPassed + 1 & " cases!")
 							EndIf
 							If $soundPlayed = 0 Then
                                 $soundPlayed = 1
@@ -298,10 +356,10 @@ Func TogglePause()
 					MouseMove($nextButton[0], $nextButton[1], 0)
 
 					If $casesPassed = 1 Then
-						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
 					Else
-						ToolTip("Pop Now Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+						ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
 					EndIf
 
@@ -551,7 +609,7 @@ EndFunc ;== Setup
 Func LoadPreset()
 	$refreshGUI = 1
 	Do
-		GUICreate("Pop Now Bot Presets", 300, 360)
+		GUICreate("Pop Bot Presets", 300, 360)
 		Local $idPresetList = GUICtrlCreateList("", 25, 25, 250, 250)
 		Local $idButton_Confirm = GUICtrlCreateButton("Load preset", 25, 275, 250, 25)
 		Local $idButton_Delete = GUICtrlCreateButton("Delete Preset", 25, 310, 250, 25)
@@ -665,7 +723,7 @@ Func SavePreset()
     ; Write data to the file using the handle returned by FileOpen.
     FileWrite($hFilehandle, $box1[0] & @CRLF & $box1[1] & @CRLF & $box2[0] & @CRLF & $box2[1] & @CRLF & $bottom[0] & @CRLF & $bottom[1] & @CRLF & $error[0] & @CRLF &  $error[1] & @CRLF & $next[0] & @CRLF & $next[1] & @CRLF & $nextButton[0] & @CRLF & $nextButton[1] & @CRLF & $pickButton[0] & @CRLF & $pickButton[1] & @CRLF & $iColorBox)
 
-	MsgBox($MB_SYSTEMMODAL, "File Content", FileRead($sFileName))
+	;MsgBox($MB_SYSTEMMODAL, "File Content", FileRead($sFileName))
 
     ; Close the handle returned by FileOpen.
     FileClose($sFileName)
@@ -679,7 +737,7 @@ Func Mark_Rect()
 
 	; Wait until mouse button pressed
     While Not _IsPressed("01", $UserDLL)
-		ToolTip("Pop Now Bot" & @CRLF & @CRLF & "Click and Drag to select area")
+		ToolTip("Pop Bot" & @CRLF & @CRLF & "Click and Drag to select area")
         Sleep(50)
     WEnd
 
@@ -693,7 +751,7 @@ Func Mark_Rect()
 
 	; Draw rectangle while mouse button pressed
     While _IsPressed("01", $UserDLL)
-		ToolTip("Pop Now Bot" & @CRLF & @CRLF & "Selecting area")
+		ToolTip("Pop Bot" & @CRLF & @CRLF & "Selecting area")
         $aMouse_Pos = MouseGetPos()
 
         $aM_Mask = DllCall("gdi32.dll", "long", "CreateRectRgn", "long", 0, "long", 0, "long", 0, "long", 0)
