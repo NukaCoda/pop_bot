@@ -1,4 +1,4 @@
-;version 27
+;version 27.1
 #include <Array.au3>
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
@@ -10,9 +10,11 @@
 #include <WindowsConstants.au3>
 #include <Color.au3>
 #Include <Misc.au3>
+#include <GDIPlus.au3>
+#include "Libraries\UWPOCR.au3"
 
-Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $nextParameter = 200, $successVolume = 10, $soundPlayed = 0
-Global $refreshTimer = 1, $timeoutTimer = 200, $timeoutReset = 200
+Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $successVolume = 10, $soundPlayed = 0, $serialCounter = 1
+Global $timeoutTimer = 200, $timeoutReset = 200
 Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorBlack = 0x000000, $iColorWhite = 0xFFFFFF, $iColorMagenta = 0xFF00FF, $iColorCase, $iColorCaseLeft, $iColorPick
 Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0], $serial1 = [0,0], $serial2 = [0,0]
 Global $iTimeout = 10, $bottomOffset = 10, $nextOffset = 15, $errorOffset = 10, $pickOffset = 5
@@ -27,7 +29,7 @@ HotKeySet("{ESC}", "Terminate")
 Initiate()
 
 #cs 
-	Func Initiate
+	Initiate
 		Introduces user to the program and prompts if user wants to load a preset.
 		If user clicks yes then loads saved preset.
 		Runs predrop to refresh page before product restock.
@@ -38,10 +40,10 @@ Initiate()
 #ce
 Func Initiate()
 	Local $autoRefresh = 1
-	$ready = MsgBox($MB_OKCANCEL, "Pop Bot", "This program will automatically click through pages of Pop Now figures and click the 'Pick One to Shake' button when one is available. There are some steps to ensure the program runs smoothly. Ready to set up the parameters for Pop Bot?")
+	Local $ready = MsgBox($MB_OKCANCEL, "Pop Bot", "This program will automatically click through pages of Pop Now figures and click the 'Pick One to Shake' button when one is available. There are some steps to ensure the program runs smoothly. Ready to set up the parameters for Pop Bot?")
 
 	If ($ready = 1) Then
-		$presetResponse = MsgBox($MB_YESNO, "Load Preset", "Do you want to load a preset?")
+		Local $presetResponse = MsgBox($MB_YESNO, "Load Preset", "Do you want to load a preset?")
 		If $presetResponse = 6 Then
 			LoadPreset()
 			$autoRefresh = PreDrop()
@@ -67,7 +69,7 @@ Func Initiate()
 EndFunc ;== Initiate
 
 #cs 
-	Func Calibrate
+	Calibrate
 		Moves the cursor to the PickButton location and waits so that accurate color capture is taken.
 		Gets the correct color of the pick button since the pick button color changes when the cursor is on it.
 #ce
@@ -86,22 +88,22 @@ Func Calibrate()
 		$iColorCase = PixelGetColor($bottom[0], $bottom[1])
 		;== Left of case color
 		$iColorCaseLeft = PixelGetColor($caseLeft[0], $caseLeft[1])
-		$counter = $counter + 1
+		$counter = $counter + 3
 	Until $counter >= 100
 	Tooltip("")
 EndFunc
 
 #cs 
-	Func ShowParameters
+	ShowParameters
 		Moves the cursor between all defined coordinates for the different values when LoadPreset is successful.
 		Shows the colors that the program will look for when searching through boxes.
 #ce
 Func ShowParameters()
-	$mouseTemp = MouseGetPos()
+	Local $mouseTemp = MouseGetPos()
+	Local $nextParameter = 200
 	Local $counterPreset = 0
-	Local $num1 = 20
-	Local $num2 = 40 ; error timer
-	Local $num3 = 10 ; pick timer
+	Local $num1 = 10
+	Local $num2 = 20 ; error timer
 
 	Do
 		MouseMove($box1[0], $box1[1])
@@ -186,13 +188,14 @@ Func ShowParameters()
 EndFunc ;== ShowParameters
 
 #cs 
-	Func PreDrop
+	PreDrop
 		Creates a GUI that prompts the user to enter a number for how long the program will wait until it automatically refreshes the page.
 		The program waits the defined amount of time, makes sure the correct window is active, then sends F5 to refresh the page.
 		Countdown restarts and continues until the Next Button is present.
 		Once the next button is present the function exits and returns a value.
 #ce
 Func PreDrop()
+	Local $refreshTimer = 1
 	Local $nextPresent
 	Local $confirm = MsgBox($MB_YESNO, "Pop Bot", "Do you want the bot to automatically refresh the page in anticipation for a Pop Now restock?")
 
@@ -200,7 +203,7 @@ Func PreDrop()
 		Local $title = WinGetTitle("POP NOW", "")
 		
 		;refreshTimer creates GUI to get time amount.
-		$refreshTimer = refreshTimer()
+		$refreshTimer = GetRefreshTimer()
 
 		If $refreshTimer = "" or $refreshTimer = 0 Then
 			$refreshTimer = 1
@@ -235,7 +238,6 @@ Func PreDrop()
 			$refresh = $refresh - 125
 		Until IsArray($nextPresent)
 		ToolTip("")
-		Sleep(5000)
 		Return 0
 	ElseIf $confirm = 7 Then
 		Return 1
@@ -243,10 +245,10 @@ Func PreDrop()
 EndFunc ;== PreDrop
 
 #cs 
-	Func refreshTimer
+	GetRefreshTimer
 		Creates GUI that prompts user to enter a number for how many minutes to wait until prorgam refreshes again.
 #ce
-Func refreshTimer()
+Func GetRefreshTimer()
 	$Form1 = GUICreate("Pop Bot", 301, 126, -1, -1, BitXOR($GUI_SS_DEFAULT_GUI, $WS_MINIMIZEBOX))
 	GUICtrlCreateLabel("Enter number of minutes to wait in between each refresh:" & @CRLF & @CRLF & "Default value: 1", 10, 10)
 	$Input1 = GUICtrlCreateInput("", 24, 60, 251, 21, $ES_NUMBER)
@@ -268,18 +270,26 @@ Func refreshTimer()
 EndFunc
 
 #cs 
-	Func DupeCheck
+	DupeCheck
 		Takes a screenshot of area where the serial number is.
 		Saves bitmap in an array.
 		Takes screenshot of next serial number and compares to previous saved numbers.
 		Records in a GUI the amount of duplicated cases there are.
 #ce
 Func DupeCheck()
-	
+	#cs
+	Local $sImageFilePath = @TempDir & "\serialN.bmp"
+
+	_ScreenCapture_Capture($sImageFilePath, $serial1[0], $serial1[1], $serial2[0], $serial2[1], False)
+
+	Local $sOCRTextResult = _UWPOCR_GetText($sImageFilePath)
+
+	Local $sFileName = @TempDir & "\Serial.txt"
+	#ce
 EndFunc
 
 #cs 
-	Func TogglePause
+	TogglePause
 		Uses values from setup or loadpreset to check if the case of boxes is in the correct position.
 		If true, then checks if the next button is not currently loading.
 		If true, then program searches the area of the case for the color the user defined as an "available box".
@@ -294,6 +304,7 @@ Func TogglePause()
 
 	Local $title
 
+	;If box was already found, but user wants to go back and continue, this will reset value counters and stop the success sound
 	If $resumeAfterFind = 1 Then
 		SoundSetWaveVolume($successVolume)
 		SoundPlay("", 0)
@@ -345,20 +356,22 @@ Func TogglePause()
 
 		;== Next check
 		;== Next button loaded
-		;ToolTip("Next check")
-		;Sleep(100)
+		ToolTip("Next check")
+		Sleep(100)
 		If ($nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)) Then
 			;== Case check
 			;== Case in position
-			;ToolTip("Case check")
-			;Sleep(100)
+			ToolTip("Case check")
+			Sleep(100)
 			If ($caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset)) Then
-				
+				;Checks if case is a duplicate
+				DupeCheck()
+
 				$boxes = PixelSearch($box1[0], $box1[1], $box2[0], $box2[1], $iColorBox, 0)
 				;== Box check
 				;== Box available
-				;ToolTip("Box check")
-				;Sleep(100)
+				ToolTip("Box check")
+				Sleep(100)
 				If IsArray($boxes) Then
 					;== Mouse clicks pick button
 					MouseMove($pickButton[0], $pickButton[1], 0)
@@ -372,8 +385,8 @@ Func TogglePause()
 						Sleep(50)
 					EndIf
 
-					$errorPresent = 0
-					$errorTimer = 0
+					Local $errorPresent = 0
+					Local $errorTimer = 0
 					Local $pickLoad = 0
 
 					;== False positive check
@@ -448,7 +461,7 @@ Func TogglePause()
 						ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
 					EndIf
-						Sleep(2000)
+						Sleep(1000)
 					;== Error not present, box successfully found
 					Else
 						$resumeAfterFind = 1
@@ -512,7 +525,7 @@ Func TogglePause()
 EndFunc ;== TogglePause
 
 #cs 
-	Func Setup
+	Setup
 		User draws a box around the area where the boxes are on the screen.
 		User selects the bottom of the case.
 		(WIP) User draws a box around where the serial number is located.
@@ -527,21 +540,20 @@ Func Setup()
 	;== Set bounds for boxes
 	; Create GUI prompting user to mark an area or cancel
 	While $continue = 10
-		$hMain_GUI = GUICreate("Boxes", 240, 50)
+		Local $hMain_GUI_B = GUICreate("Boxes", 240, 50)
 
-		$hRect_Button   = GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
-		$hCancel_Button = GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
+		Local $hRect_Button   = GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
+		Local $hCancel_Button = GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
 
 		GUISetState()
 
 		While 1
-
 		    Switch GUIGetMsg()
 		        Case $GUI_EVENT_CLOSE, $hCancel_Button
 		            FileDelete(@TempDir & "\Rect.bmp")
 					Terminate()
 		        Case $hRect_Button
-		            GUIDelete($hMain_GUI)
+		            GUIDelete($hMain_GUI_B)
 		            Mark_Rect()
 					$box1[0] = $iX1
 					$box1[1] = $iY1
@@ -551,8 +563,8 @@ Func Setup()
 					Local $iX3 = $iX2 - $iX1
 					Local $iY3 = $iY2 - $iY1
 					; Capture selected area
-		            $sBMP_Path = @TempDir & "\Rect.bmp"
-		            _ScreenCapture_Capture($sBMP_Path, $iX1, $iY1, $iX2, $iY2, False)
+		            Local $sBMP_Path_B = @TempDir & "\Rect.bmp"
+		            _ScreenCapture_Capture($sBMP_Path_B, $iX1, $iY1, $iX2, $iY2, False)
 					If $iX3 < 200 and $iX3 < $iY3 Then
 						$iX3 = 200
 						$iY3 = 200 * (1 / $iRatio)
@@ -561,24 +573,24 @@ Func Setup()
 						$iY3 = 200
 					EndIf
 		    		; Display image
-		            $hBitmap_GUI = GUICreate("Selected Rectangle", $iX3 + 1, $iY3 + 45, -1, -1)
-					GUICtrlCreatePic($sBMP_Path, 0, 0, $iX3 + 1, $iY3 + 1)
-		            $cancelButton = GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					$retryButton = GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					$contButton = GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+		            Local $hBitmap_GUI_B = GUICreate("Selected Rectangle", $iX3 + 1, $iY3 + 45, -1, -1)
+					GUICtrlCreatePic($sBMP_Path_B, 0, 0, $iX3 + 1, $iY3 + 1)
+		            Local $cancelButtonB = GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					Local $retryButtonB = GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					Local $contButtonB = GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
 					GUISetState()
 					WinActivate("Selected Rectangle")
 					While 1
 							Switch GUIGetMsg()
-								Case $GUI_EVENT_CLOSE, $cancelButton
+								Case $GUI_EVENT_CLOSE, $cancelButtonB
 									Terminate()
-								Case $contButton
+								Case $contButtonB
 									$continue = 11
-									GUIDelete($hBitmap_GUI)
+									GUIDelete($hBitmap_GUI_B)
 									ExitLoop
-								Case $retryButton
+								Case $retryButtonB
 									$continue = 10
-									GUIDelete($hBitmap_GUI)
+									GUIDelete($hBitmap_GUI_B)
 									ExitLoop
 							EndSwitch
 					WEnd
@@ -604,7 +616,7 @@ Func Setup()
 		EndIf
 		$bottom = MouseGetPos()
 
-		$sCasePic_Path = @TempDir & "\Case.bmp"
+		Local $sCasePic_Path = @TempDir & "\Case.bmp"
 		_ScreenCapture_Capture($sCasePic_Path, $bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset, False)
 
 		GUICreate("", $bottomOffset * 20, $bottomOffset * 20 + 110) ; will create a dialog box that when displayed is centered
@@ -614,24 +626,24 @@ Func Setup()
 
 		; Display image
 
-		$cancelButton = GUICtrlCreateButton("Cancel", 10, $bottomOffset * 21, ($bottomOffset * 20) - 20, 25)
+		Local $cancelButtonC = GUICtrlCreateButton("Cancel", 10, $bottomOffset * 21, ($bottomOffset * 20) - 20, 25)
 
-		$retryButton = GUICtrlCreateButton("Try Again", 10, $bottomOffset * 21 + 30, ($bottomOffset * 20) - 20, 25)
+		Local $retryButtonC = GUICtrlCreateButton("Try Again", 10, $bottomOffset * 21 + 30, ($bottomOffset * 20) - 20, 25)
 
-		$contButton = GUICtrlCreateButton("Continue", 10, $bottomOffset * 21 + 60, ($bottomOffset * 20) - 20, 25)
+		Local $contButtonC = GUICtrlCreateButton("Continue", 10, $bottomOffset * 21 + 60, ($bottomOffset * 20) - 20, 25)
 
 		GUISetState()
 		WinActivate("Selected Case Position")
 
 		While 1
 			Switch GUIGetMsg()
-				Case $GUI_EVENT_CLOSE, $cancelButton
+				Case $GUI_EVENT_CLOSE, $cancelButtonC
 					Terminate()
-				Case $contButton
+				Case $contButtonC
 					$continue = 11
 					GUIDelete()
 					ExitLoop
-				Case $retryButton
+				Case $retryButtonC
 					$continue = 10
 					GUIDelete()
 					ExitLoop
@@ -645,7 +657,7 @@ Func Setup()
 
 	$continue = 10
 
-#cs
+	#cs
 	While $continue = 10
 		$hMain_GUI = GUICreate("Serial Number", 240, 50)
 		
@@ -656,7 +668,6 @@ Func Setup()
 		GUISetState()
 
 		While 1
-
 		    Switch GUIGetMsg()
 		        Case $GUI_EVENT_CLOSE, $hCancel_Button
 		            FileDelete(@TempDir & "\Rect.bmp")
@@ -706,8 +717,15 @@ Func Setup()
 					ExitLoop
 		    EndSwitch
 		WEnd
+		
+		Local $serialTest = _UWPOCR_GetText($sBMP_Path)
+
+		If $serialTest = "" Then
+			MsgBox(0, "Error", "Unable to read serial number. Try selecting a bigger area.")
+			$continue = 10
+		EndIf
 	Wend
-#ce
+	#ce
 
 	;== Reset response
 	$continue = 10
@@ -811,7 +829,7 @@ Func Setup()
 EndFunc ;== Setup
 
 #cs 
-	Func LoadPreset
+	LoadPreset
 		Creates a GUI and reads all titles of txt files in Presets folder.
 		User is able to click on a preset and either load it or delete it.
 		If user clicks load, then values in txt file is saved as values in program and showParameters is called.
@@ -829,6 +847,7 @@ Func LoadPreset()
 		
 		If $hSearch = -1 Then
     	    MsgBox($MB_SYSTEMMODAL, "", "Error: No files/directories matched the search pattern.")
+			Terminate()
     	    Return False
     	EndIf
 		
@@ -876,22 +895,59 @@ Func LoadPreset()
 		MsgBox($MB_OK, "ERROR", "An error occurred when reading the file.")
 		Terminate()
     EndIf
-
-	$box1[0]		= FileReadLine($rFileHandle, 1)
-	$box1[1]		= FileReadLine($rFileHandle, 2)
-	$box2[0]		= FileReadLine($rFileHandle, 3)
-	$box2[1]		= FileReadLine($rFileHandle, 4)
-	$bottom[0]		= FileReadLine($rFileHandle, 5)
-	$bottom[1]		= FileReadLine($rFileHandle, 6)
-	$error[0]		= FileReadLine($rFileHandle, 7)
-	$error[1]		= FileReadLine($rFileHandle, 8)
-	$next[0]		= FileReadLine($rFileHandle, 9)
-	$next[1]		= FileReadLine($rFileHandle, 10)
-	$nextButton[0]	= FileReadLine($rFileHandle, 11)
-	$nextButton[1]	= FileReadLine($rFileHandle, 12)
-	$pickButton[0]	= FileReadLine($rFileHandle, 13)
-	$pickButton[1]	= FileReadLine($rFileHandle, 14)
-	$iColorBox		= FileReadLine($rFileHandle, 15)
+	Local $lineCounter = 0
+	Do
+		$lineCounter = $lineCounter + 1
+		FileReadLine($rFileHandle, $lineCounter)
+	Until FileReadLine($rFileHandle, $lineCounter) = ""
+	
+	If $lineCounter = 16 Then
+		$box1[0]		= FileReadLine($rFileHandle, 1)
+		$box1[1]		= FileReadLine($rFileHandle, 2)
+		$box2[0]		= FileReadLine($rFileHandle, 3)
+		$box2[1]		= FileReadLine($rFileHandle, 4)
+		$bottom[0]		= FileReadLine($rFileHandle, 5)
+		$bottom[1]		= FileReadLine($rFileHandle, 6)
+		$error[0]		= FileReadLine($rFileHandle, 7)
+		$error[1]		= FileReadLine($rFileHandle, 8)
+		$next[0]		= FileReadLine($rFileHandle, 9)
+		$next[1]		= FileReadLine($rFileHandle, 10)
+		$nextButton[0]	= FileReadLine($rFileHandle, 11)
+		$nextButton[1]	= FileReadLine($rFileHandle, 12)
+		$pickButton[0]	= FileReadLine($rFileHandle, 13)
+		$pickButton[1]	= FileReadLine($rFileHandle, 14)
+		$iColorBox		= FileReadLine($rFileHandle, 15)
+	ElseIf $lineCounter = 26 Then
+		$box1[0]		= FileReadLine($rFileHandle, 1)
+		$box1[1]		= FileReadLine($rFileHandle, 2)
+		$box2[0]		= FileReadLine($rFileHandle, 3)
+		$box2[1]		= FileReadLine($rFileHandle, 4)
+		$bottom[0]		= FileReadLine($rFileHandle, 5)
+		$bottom[1]		= FileReadLine($rFileHandle, 6)
+		$caseChecksum	= FileReadLine($rFileHandle, 7)
+		$iColorCase		= FileReadLine($rFileHandle, 8)
+		$iColorCaseLeft	= FileReadLine($rFileHandle, 9)
+		$error[0]		= FileReadLine($rFileHandle, 10)
+		$error[1]		= FileReadLine($rFileHandle, 11)
+		$errorChecksum	= FileReadLine($rFileHandle, 12)
+		$next[0]		= FileReadLine($rFileHandle, 13)
+		$next[1]		= FileReadLine($rFileHandle, 14)
+		$nextChecksum	= FileReadLine($rFileHandle, 15)
+		$nextButton[0]	= FileReadLine($rFileHandle, 16)
+		$nextButton[1]	= FileReadLine($rFileHandle, 17)
+		$pickButton[0]	= FileReadLine($rFileHandle, 18)
+		$pickButton[1]	= FileReadLine($rFileHandle, 19)
+		$iColorPick		= FileReadLine($rFileHandle, 20)
+		$iColorBox		= FileReadLine($rFileHandle, 21)
+		$serial1[0]		= FileReadLine($rFileHandle, 22)
+		$serial1[1]		= FileReadLine($rFileHandle, 23)
+		$serial2[0]		= FileReadLine($rFileHandle, 24)
+		$serial2[1]		= FileReadLine($rFileHandle, 25)
+	Else
+		FileClose($rFileHandle)
+		MsgBox($MB_SYSTEMMODAL, "Load Preset", "Error loading preset." & @CRLF & @CRLF & "Application closing")
+		Terminate()
+	EndIf
 
 	FileClose($rFileHandle)
 
@@ -899,7 +955,7 @@ Func LoadPreset()
 EndFunc ;== LoadPreset
 
 #cs 
-	Func SavePreset
+	SavePreset
 		After LoadPreset or Setup, prompts user to save preset.
 		If user saves then create input box to name the preset.
 		Preset is saved as a txt file in the preset folder.
@@ -938,10 +994,32 @@ Func SavePreset()
 		Terminate()
 	EndIf
 
-    ; Write data to the file using the handle returned by FileOpen.
-    FileWrite($hFilehandle, $box1[0] & @CRLF & $box1[1] & @CRLF & $box2[0] & @CRLF & $box2[1] & @CRLF & $bottom[0] & @CRLF & $bottom[1] & @CRLF & $error[0] & @CRLF &  $error[1] & @CRLF & $next[0] & @CRLF & $next[1] & @CRLF & $nextButton[0] & @CRLF & $nextButton[1] & @CRLF & $pickButton[0] & @CRLF & $pickButton[1] & @CRLF & $iColorBox)
-
-	;MsgBox($MB_SYSTEMMODAL, "File Content", FileRead($sFileName))
+	; Write data to the file using the handle returned by FileOpen.
+	FileWriteLine($hFileHandle, $box1[0])
+	FileWriteLine($hFileHandle, $box1[1])
+	FileWriteLine($hFileHandle, $box2[0])
+	FileWriteLine($hFileHandle, $box2[1])
+	FileWriteLine($hFileHandle, $bottom[0])
+	FileWriteLine($hFileHandle, $bottom[1])
+	FileWriteLine($hFileHandle, $caseChecksum)
+	FileWriteLine($hFileHandle, $iColorCase)
+	FileWriteLine($hFileHandle, $iColorCaseLeft)
+	FileWriteLine($hFileHandle, $error[0])
+	FileWriteLine($hFileHandle, $error[1])
+	FileWriteLine($hFileHandle, $errorChecksum)
+	FileWriteLine($hFileHandle, $next[0])
+	FileWriteLine($hFileHandle, $next[1])
+	FileWriteLine($hFileHandle, $nextChecksum)
+	FileWriteLine($hFileHandle, $nextButton[0])
+	FileWriteLine($hFileHandle, $nextButton[1])
+	FileWriteLine($hFileHandle, $pickButton[0])
+	FileWriteLine($hFileHandle, $pickButton[1])
+	FileWriteLine($hFileHandle, $iColorPick)
+	FileWriteLine($hFileHandle, $iColorBox)
+	FileWriteLine($hFileHandle, $serial1[0])
+	FileWriteLine($hFileHandle, $serial1[1])
+	FileWriteLine($hFileHandle, $serial2[0])
+	FileWriteLine($hFileHandle, $serial2[1])
 
     ; Close the handle returned by FileOpen.
     FileClose($sFileName)
