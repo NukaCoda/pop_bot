@@ -1,4 +1,4 @@
-;version 27.2
+;version 27.2.1
 #include <Array.au3>
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
