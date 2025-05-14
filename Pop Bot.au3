@@ -1,4 +1,4 @@
-;version 27.2.1
+;version 27.3
 #include <Array.au3>
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
@@ -13,7 +13,7 @@
 #include <GDIPlus.au3>
 #include "Libraries\UWPOCR.au3"
 
-Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $successVolume = 10, $soundPlayed = 0, $serialCounter = 1
+Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $soundPlayed = 0, $serialCounter = 1
 Global $timeoutTimer = 200, $timeoutReset = 200
 Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorBlack = 0x000000, $iColorWhite = 0xFFFFFF, $iColorMagenta = 0xFF00FF, $iColorCase, $iColorCaseLeft, $iColorPick
 Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0], $serial1 = [0,0], $serial2 = [0,0]
@@ -303,6 +303,7 @@ Func TogglePause()
 	$g_bPaused = Not $g_bPaused
 
 	Local $title
+	Local $successVolume = 10
 
 	;If box was already found, but user wants to go back and continue, this will reset value counters and stop the success sound
 	If $resumeAfterFind = 1 Then
@@ -356,13 +357,13 @@ Func TogglePause()
 
 		;== Next check
 		;== Next button loaded
-		ToolTip("Next check")
-		Sleep(100)
+		;ToolTip("Next check")
+		;Sleep(100)
 		If ($nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)) Then
 			;== Case check
 			;== Case in position
-			ToolTip("Case check")
-			Sleep(100)
+			;ToolTip("Case check")
+			;Sleep(100)
 			If ($caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset)) Then
 				;Checks if case is a duplicate
 				DupeCheck()
@@ -370,8 +371,8 @@ Func TogglePause()
 				$boxes = PixelSearch($box1[0], $box1[1], $box2[0], $box2[1], $iColorBox, 0)
 				;== Box check
 				;== Box available
-				ToolTip("Box check")
-				Sleep(100)
+				;ToolTip("Box check")
+				;Sleep(100)
 				If IsArray($boxes) Then
 					;== Mouse clicks pick button
 					MouseMove($pickButton[0], $pickButton[1], 0)
@@ -475,8 +476,11 @@ Func TogglePause()
 							EndIf
 							If $soundPlayed = 0 Then
                                 $soundPlayed = 1
+								Local $tSearch = FileFindFirstFile("Success Sound\*.wav")
+								Local $sFileName = FileFindNextFile($tSearch)
+								;MsgBox(0, "", $sFileName)
                                 SoundSetWaveVolume($successVolume)
-							    SoundPlay("Success Sound\*.wav", 0)
+							    SoundPlay("Success Sound\" & $sFileName)
 							EndIf
                             Sleep(50)
 						WEnd
