@@ -1,4 +1,4 @@
-;version 27.3.1
+;version 28
 #include <Array.au3>
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
@@ -13,14 +13,21 @@
 #include <GDIPlus.au3>
 #include "Libraries\UWPOCR.au3"
 
-Global $g_bPaused = False, $casesPassed = 0, $resumeAfterFind = 0, $soundPlayed = 0, $serialCounter = 1
-Global $timeoutTimer = 200, $timeoutReset = 200
+;True/False
+Global $g_bPaused = False, $freshStart = true, $resumeAfterFind = 0, $soundPlayed = 0
+;Timers & Counters
+Global $iTimeout = 10, $timeoutTimer = 200, $timeoutReset = 200, $serialCounter = 0, $SNappearanceCount = 1, $casesPassed = 0, $uniquePassed = 0, $dupePassed = 0
+;Colors
 Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorBlack = 0x000000, $iColorWhite = 0xFFFFFF, $iColorMagenta = 0xFF00FF, $iColorCase, $iColorCaseLeft, $iColorPick
-Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0], $serial1 = [0,0], $serial2 = [0,0]
-Global $iTimeout = 10, $bottomOffset = 10, $nextOffset = 15, $errorOffset = 10, $pickOffset = 5
+;Coordinates/Arrays
+Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0], $serial1 = [0,0], $serial2 = [0,0], $serialArray[], $SNappearanceArray[]
+;Offsets
+Global $bottomOffset = 10, $nextOffset = 15, $errorOffset = 10, $pickOffset = 5
+;Checksums
 Global $errorChecksum, $nextChecksum, $caseChecksum
+;Rect values
 Global $iX1, $iY1, $iX2, $iY2, $aPos, $sMsg, $sBMP_Path, $hRectangle_GUI
-
+;Debug
 Global $debugTime = 200
 
 HotKeySet("{HOME}", "TogglePause")
@@ -88,7 +95,7 @@ Func Calibrate()
 		$iColorCase = PixelGetColor($bottom[0], $bottom[1])
 		;== Left of case color
 		$iColorCaseLeft = PixelGetColor($caseLeft[0], $caseLeft[1])
-		$counter = $counter + 3
+		$counter = $counter + 5
 	Until $counter >= 100
 	Tooltip("")
 EndFunc
@@ -277,15 +284,64 @@ EndFunc
 		Records in a GUI the amount of duplicated cases there are.
 #ce
 Func DupeCheck()
-	#cs
 	Local $sImageFilePath = @TempDir & "\serialN.bmp"
 
 	_ScreenCapture_Capture($sImageFilePath, $serial1[0], $serial1[1], $serial2[0], $serial2[1], False)
 
-	Local $sOCRTextResult = _UWPOCR_GetText($sImageFilePath)
+	Local $sFileName = @TempDir & "\serial.txt"
+	Local $hFilehandle
+	Local $newSN = True
 
-	Local $sFileName = @TempDir & "\Serial.txt"
-	#ce
+	If $freshStart = true Then 
+		$hFilehandle = FileOpen($sFileName, $FO_OVERWRITE)
+	Else
+		$hFilehandle = FileOpen($sFileName, $FO_APPEND)
+	EndIf
+
+	Local $sOCRTextResult = _UWPOCR_GetText($sImageFilePath)
+	Local $nbr = StringRegExp($sOCRTextResult, '\d+(?:,\d+)?', 1)
+	IsArray($nbr)
+	Local $counter = $serialCounter - 1
+	;Local $counterA
+	$serialArray[$serialCounter] = $nbr[0]
+	;$serialArray[$serialCounter + 1] = $SNappearanceCount
+
+	If $freshStart = false Then
+		Do
+			If $serialArray[$serialCounter] = $serialArray[$counter] Then
+				;MsgBox(0, "", "Duplicate")
+				$newSN = False
+				ExitLoop
+			Else
+				;MsgBox(0, "", "Unique")
+				$counter = $counter - 1
+			EndIf
+		Until $counter < 0
+	EndIf
+
+	If $newSN = True Then
+		;FileSetPos($hFileHandle, 0, $FILE_END)
+		FileWriteLine($hFilehandle, $serialArray[$serialCounter])
+		$uniquePassed = $uniquePassed + 1
+		;MsgBox(0, "", FileGetPos($hFilehandle))
+		;FileWriteLine($hFilehandle, $SNappearanceCount)
+		;MsgBox(0, "", FileGetPos($hFilehandle))
+	ElseIf $newSN = False Then
+		FileWriteLine($hFilehandle, $serialArray[$serialCounter])
+		$dupePassed = $dupePassed + 1
+		;ToolTip("Dupe")
+		;Sleep(100)
+		;FileSetPos($hFileHandle, -1, $counter * 12)
+		;FileWrite($hFilehandle, $serialArray[$counter + 1] + 1)
+	EndIf
+
+	;MsgBox(0, "", FileGetPos($hFilehandle))
+	;FileWriteLine($hFilehandle, $SNappearanceCount)
+	;MsgBox(0, "", FileGetPos($hFilehandle))
+
+	FileClose($sFileName)
+	$serialCounter = $serialCounter + 1
+	$freshStart = false
 EndFunc
 
 #cs 
@@ -316,24 +372,14 @@ Func TogglePause()
 	EndIf
 	;== Program paused
 	While $g_bPaused = 0
-		If $casesPassed = 1 Then
-			ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
-			Sleep(50)
-		Else
-			ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed - PAUSED" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
-			Sleep(50)
-		EndIf
+		ToolTip("Pop Bot - PAUSED" & @CRLF & @CRLF & $casesPassed & " total cases passed" & @CRLF & $uniquePassed & " unique cases" & @CRLF & $dupePassed & " duplicate cases" & @CRLF & @CRLF & "Home to resume" & @CRLF & "Escape to quit")
+		Sleep(50)
 	WEnd ;== Program paused
 
 	;== Program unpaused
 	While $g_bPaused = 1
-		If $casesPassed = 1 Then
-			ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
-			Sleep(50)
-		Else
-			ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
-			Sleep(50)
-		EndIf
+		ToolTip("Pop Bot" & @CRLF & @CRLF & $casesPassed & " total cases passed" & @CRLF & $uniquePassed & " unique cases" & @CRLF & $dupePassed & " duplicate cases" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+		Sleep(50)
 
 		;Checks if the Pick button is white which most likely means the page timed out
 		While PixelGetColor($pickButton[0], $pickButton[1]) = $iColorWhite and $timeoutTimer > 0
@@ -365,6 +411,7 @@ Func TogglePause()
 			;ToolTip("Case check")
 			;Sleep(100)
 			If ($caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset)) Then
+				Sleep(50)
 				;Checks if case is a duplicate
 				DupeCheck()
 
@@ -378,13 +425,8 @@ Func TogglePause()
 					MouseMove($pickButton[0], $pickButton[1], 0)
 					MouseClick($MOUSE_CLICK_LEFT)
 
-					If $casesPassed = 1 Then
-						ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
-						Sleep(50)
-					Else
-						ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
-						Sleep(50)
-					EndIf
+					ToolTip("Pop Bot" & @CRLF & @CRLF & $casesPassed & " total cases passed" & @CRLF & $uniquePassed & " unique cases" & @CRLF & $dupePassed & " duplicate cases" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+					Sleep(50)
 
 					Local $errorPresent = 0
 					Local $errorTimer = 0
@@ -455,13 +497,10 @@ Func TogglePause()
 						$casesPassed = $casesPassed + 1
 						MouseMove($nextButton[0], $nextButton[1], 0)
 						MouseClick($MOUSE_CLICK_LEFT)
-						If $casesPassed = 1 Then
-						ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+
+						ToolTip("Pop Bot" & @CRLF & @CRLF & $casesPassed & " total cases passed" & @CRLF & $uniquePassed & " unique cases" & @CRLF & $dupePassed & " duplicate cases" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
 						Sleep(50)
-					Else
-						ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
-						Sleep(50)
-					EndIf
+
 						Sleep(1000)
 					;== Error not present, box successfully found
 					Else
@@ -489,13 +528,8 @@ Func TogglePause()
 				Else
 					MouseMove($nextButton[0], $nextButton[1], 0)
 
-					If $casesPassed = 1 Then
-						ToolTip("Pop Bot" & @CRLF & $casesPassed & " case passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
-						Sleep(50)
-					Else
-						ToolTip("Pop Bot" & @CRLF & $casesPassed & " cases passed" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
-						Sleep(50)
-					EndIf
+					ToolTip("Pop Bot" & @CRLF & @CRLF & $casesPassed & " total cases passed" & @CRLF & $uniquePassed & " unique cases" & @CRLF & $dupePassed & " duplicate cases" & @CRLF & @CRLF & "Home to pause" & @CRLF & "Escape to quit")
+					Sleep(50)
 
 					$ShouldClick = 1
 					;== Mouse clicks once
@@ -532,7 +566,7 @@ EndFunc ;== TogglePause
 	Setup
 		User draws a box around the area where the boxes are on the screen.
 		User selects the bottom of the case.
-		(WIP) User draws a box around where the serial number is located.
+		User draws a box around where the serial number is located.
 		User selects general area where the error message will pop up.
 		User selects center of the next button.
 		User selects where the curor will click the next button.
@@ -661,23 +695,23 @@ Func Setup()
 
 	$continue = 10
 
-	#cs
 	While $continue = 10
-		$hMain_GUI = GUICreate("Serial Number", 240, 50)
+		MsgBox(0, "Serial Number", "Draw a box around the serial number AFTER 'No. 1000'.")
+		Local $hMain_GUI_SN = GUICreate("Serial Number", 240, 50)
 		
 
-		$hRect_Button   = GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
-		$hCancel_Button = GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
+		Local $hRect_Button_SN   = GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
+		Local $hCancel_Button_SN = GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
 
 		GUISetState()
 
 		While 1
 		    Switch GUIGetMsg()
-		        Case $GUI_EVENT_CLOSE, $hCancel_Button
-		            FileDelete(@TempDir & "\Rect.bmp")
+		        Case $GUI_EVENT_CLOSE, $hCancel_Button_SN
+		            FileDelete(@TempDir & "\serialN.bmp")
 					Terminate()
-		        Case $hRect_Button
-		            GUIDelete($hMain_GUI)
+		        Case $hRect_Button_SN
+		            GUIDelete($hMain_GUI_SN)
 		            Mark_Rect()
 					$serial1[0] = $iX1
 					$serial1[1] = $iY1
@@ -687,8 +721,8 @@ Func Setup()
 					$iX3 = $iX2 - $iX1
 					$iY3 = $iY2 - $iY1
 					; Capture selected area
-		            $sBMP_Path = @TempDir & "\Rect.bmp"
-		            _ScreenCapture_Capture($sBMP_Path, $iX1, $iY1, $iX2, $iY2, False)
+		            $sBMP_Path_SN = @TempDir & "\serialN.bmp"
+		            _ScreenCapture_Capture($sBMP_Path_SN, $iX1, $iY1, $iX2, $iY2, False)
 					If $iX3 < 200 and $iX3 < $iY3 Then
 						$iX3 = 200
 						$iY3 = 200 * (1 / $iRatio)
@@ -697,24 +731,24 @@ Func Setup()
 						$iY3 = 100
 					EndIf
 		    		; Display image
-		            $hBitmap_GUI = GUICreate("Selected Rectangle", $iX3 + 1, $iY3 + 45, -1, -1)
-					GUICtrlCreatePic($sBMP_Path, 0, 0, $iX3 + 1, $iY3 + 1)
-		            $cancelButton = GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					$retryButton = GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					$contButton = GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+		            $hBitmap_GUI_SN = GUICreate("Selected Rectangle", $iX3 + 1, $iY3 + 45, -1, -1)
+					GUICtrlCreatePic($sBMP_Path_SN, 0, 0, $iX3 + 1, $iY3 + 1)
+		            $cancelButton_SN = GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					$retryButton_SN = GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					$contButton_SN = GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
 					GUISetState()
 					WinActivate("Selected Rectangle")
 					While 1
 							Switch GUIGetMsg()
-								Case $GUI_EVENT_CLOSE, $cancelButton
+								Case $GUI_EVENT_CLOSE, $cancelButton_SN
 									Terminate()
-								Case $contButton
+								Case $contButton_SN
 									$continue = 11
-									GUIDelete($hBitmap_GUI)
+									GUIDelete($hBitmap_GUI_SN)
 									ExitLoop
-								Case $retryButton
+								Case $retryButton_SN
 									$continue = 10
-									GUIDelete($hBitmap_GUI)
+									GUIDelete($hBitmap_GUI_SN)
 									ExitLoop
 							EndSwitch
 					WEnd
@@ -722,14 +756,16 @@ Func Setup()
 		    EndSwitch
 		WEnd
 		
-		Local $serialTest = _UWPOCR_GetText($sBMP_Path)
+		Local $serialTest = _UWPOCR_GetText($sBMP_Path_SN)
+		Local $nbr = StringRegExp($serialTest, '\d+(?:,\d+)?', 1)
 
-		If $serialTest = "" Then
-			MsgBox(0, "Error", "Unable to read serial number. Try selecting a bigger area.")
+		If $serialTest = "" or StringLen($nbr[0]) < 10 or StringLen($nbr[0]) > 10 Then
+			If MsgBox($MB_OKCANCEL, "Error", "Serial number illegible or incorrect number of digits. Try selecting a bigger area.") = 2 Then
+				Terminate()
+			EndIf
 			$continue = 10
 		EndIf
 	Wend
-	#ce
 
 	;== Reset response
 	$continue = 10
@@ -955,7 +991,7 @@ Func LoadPreset()
 
 	FileClose($rFileHandle)
 
-	ShowParameters()
+	;ShowParameters()
 EndFunc ;== LoadPreset
 
 #cs 
