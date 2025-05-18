@@ -1,4 +1,4 @@
-;version 28
+;version 29
 #include <Array.au3>
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
@@ -20,7 +20,7 @@ Global $iTimeout = 10, $timeoutTimer = 200, $timeoutReset = 200, $serialCounter 
 ;Colors
 Global $iColorBox = 0xFF00FF, $iColorBottom = 0xFF00FF, $iColorNext = 0x000000, $iColorBlack = 0x000000, $iColorWhite = 0xFFFFFF, $iColorMagenta = 0xFF00FF, $iColorCase, $iColorCaseLeft, $iColorPick
 ;Coordinates/Arrays
-Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0], $serial1 = [0,0], $serial2 = [0,0], $serialArray[], $SNappearanceArray[]
+Global $box1 = [0,0], $box2 = [0,0], $next = [0,0], $bottom = [0,0], $pickButton = [0,0], $nextButton = [0,0], $error = [0,0], $caseLeft = [0, 0], $mousePos = [0,0], $serial1 = [0,0], $serial2 = [0,0], $serialNumber[], $serialAppearance[]
 ;Offsets
 Global $bottomOffset = 10, $nextOffset = 15, $errorOffset = 10, $pickOffset = 5
 ;Checksums
@@ -291,6 +291,8 @@ Func DupeCheck()
 	Local $sFileName = @TempDir & "\serial.txt"
 	Local $hFilehandle
 	Local $newSN = True
+	Local $tmpFile
+	Local $tmpText
 
 	If $freshStart = true Then 
 		$hFilehandle = FileOpen($sFileName, $FO_OVERWRITE)
@@ -303,13 +305,14 @@ Func DupeCheck()
 	IsArray($nbr)
 	Local $counter = $serialCounter - 1
 	;Local $counterA
-	$serialArray[$serialCounter] = $nbr[0]
-	;$serialArray[$serialCounter + 1] = $SNappearanceCount
+	$serialNumber[$serialCounter] = $nbr[0]
+	$serialAppearance[$serialCounter] = 1
 
 	If $freshStart = false Then
 		Do
-			If $serialArray[$serialCounter] = $serialArray[$counter] Then
+			If $serialNumber[$serialCounter] = $serialNumber[$counter] Then
 				;MsgBox(0, "", "Duplicate")
+				$serialAppearance[$counter] = $serialAppearance[$counter] + 1
 				$newSN = False
 				ExitLoop
 			Else
@@ -321,18 +324,29 @@ Func DupeCheck()
 
 	If $newSN = True Then
 		;FileSetPos($hFileHandle, 0, $FILE_END)
-		FileWriteLine($hFilehandle, $serialArray[$serialCounter])
+		FileWriteLine($hFilehandle, $serialNumber[$serialCounter])
+		FileWriteLine($hFilehandle, $serialAppearance[$serialCounter])
+
 		$uniquePassed = $uniquePassed + 1
 		;MsgBox(0, "", FileGetPos($hFilehandle))
 		;FileWriteLine($hFilehandle, $SNappearanceCount)
 		;MsgBox(0, "", FileGetPos($hFilehandle))
 	ElseIf $newSN = False Then
-		FileWriteLine($hFilehandle, $serialArray[$serialCounter])
+		;FileWriteLine($hFilehandle, $serialNumber[$serialCounter])
+		$tmpFile = @TempDir & "\serial.txt"
+		$tmpText = FileRead(FileGetLongName($tmpFile),FileGetSize(FileGetLongName($tmpFile)))
+		MsgBox(0, "", $tmpText)
+		$tmpText = StringReplace($tmpText, $serialNumber[$counter] & @CRLF & $serialAppearance[$counter] - 1, $serialNumber[$counter] & @CRLF & $serialAppearance[$counter])
+		;MsgBox(0, "", $serialNumber[$counter] & @CRLF & $serialAppearance[$counter] - 1)
+		;MsgBox(0, "", $serialNumber[$counter] & @CRLF & $serialAppearance[$counter])
+		FileDelete($tmpFile)
+		FileWrite($tmpFile, $tmpText)
+
 		$dupePassed = $dupePassed + 1
 		;ToolTip("Dupe")
 		;Sleep(100)
 		;FileSetPos($hFileHandle, -1, $counter * 12)
-		;FileWrite($hFilehandle, $serialArray[$counter + 1] + 1)
+		;FileWrite($hFilehandle, $serialNumber[$counter + 1] + 1)
 	EndIf
 
 	;MsgBox(0, "", FileGetPos($hFilehandle))
@@ -562,27 +576,13 @@ Func TogglePause()
 	ToolTip("")
 EndFunc ;== TogglePause
 
-#cs 
-	Setup
-		User draws a box around the area where the boxes are on the screen.
-		User selects the bottom of the case.
-		User draws a box around where the serial number is located.
-		User selects general area where the error message will pop up.
-		User selects center of the next button.
-		User selects where the curor will click the next button.
-		User selects where the cursor will click the pick one button.
-		User selects on the screen the color of an available case.
-#ce
-Func Setup()
-	Local $continue = 10
-	;== Set bounds for boxes
-	; Create GUI prompting user to mark an area or cancel
-	While $continue = 10
-		Local $hMain_GUI_B = GUICreate("Boxes", 240, 50)
-
-		Local $hRect_Button   = GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
-		Local $hCancel_Button = GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
-
+Func GetBoxPos()
+	Local $response
+	Do
+		Local $hMain_GUI_B 		= GUICreate("Boxes", 300, 100)
+		Local $hRect_Button 	= GUICtrlCreateButton("Mark Area",  30, 50, 80, 30)
+		Local $hCancel_Button 	= GUICtrlCreateButton("Cancel", 180, 50, 80, 30)
+		GUICtrlCreateLabel("Draw a box around the location of the figure boxes.", 25, 20)
 		GUISetState()
 
 		While 1
@@ -613,9 +613,9 @@ Func Setup()
 		    		; Display image
 		            Local $hBitmap_GUI_B = GUICreate("Selected Rectangle", $iX3 + 1, $iY3 + 45, -1, -1)
 					GUICtrlCreatePic($sBMP_Path_B, 0, 0, $iX3 + 1, $iY3 + 1)
-		            Local $cancelButtonB = GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					Local $retryButtonB = GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					Local $contButtonB = GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+		            Local $cancelButtonB 	= GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					Local $againButtonB 	= GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					Local $contButtonB 		= GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
 					GUISetState()
 					WinActivate("Selected Rectangle")
 					While 1
@@ -623,11 +623,11 @@ Func Setup()
 								Case $GUI_EVENT_CLOSE, $cancelButtonB
 									Terminate()
 								Case $contButtonB
-									$continue = 11
+									$response = 11
 									GUIDelete($hBitmap_GUI_B)
 									ExitLoop
-								Case $retryButtonB
-									$continue = 10
+								Case $againButtonB
+									$response = 10
 									GUIDelete($hBitmap_GUI_B)
 									ExitLoop
 							EndSwitch
@@ -635,24 +635,31 @@ Func Setup()
 					ExitLoop
 		    EndSwitch
 		WEnd
-	Wend
-
-	If $box1[0] < $box2[0] Then
-		$caseLeft[0] = $box1[0]
-		$caseLeft[1] = $box1[1]
-	Else
-		$caseLeft[0] = $box2[0]
-		$caseLeft[1] = $box2[1]
-	EndIf
-
-	;== Reset response
-	$continue = 10
-	;== Set position of bottom of case
-	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Case Location", "Position your cursor on a unique color on the bottom of the case. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
-			Terminate()
+		If $box1[0] < $box2[0] Then
+			$caseLeft[0] = $box1[0]
+			$caseLeft[1] = $box1[1]
+		Else
+			$caseLeft[0] = $box2[0]
+			$caseLeft[1] = $box2[1]
 		EndIf
-		$bottom = MouseGetPos()
+	Until $response = 11
+EndFunc
+
+Func GetCasePos()
+	Local $response
+	Local $UserDLL = DllOpen("user32.dll")
+	Do
+		While 1
+			ToolTip("Position your cursor on a unique" & @CRLF & "color on the bottom of the case," & @CRLF & "then press 'E'")
+			If _IsPressed("45", $UserDLL) then 
+				$bottom = MouseGetPos()
+				ToolTip("")
+				ExitLoop
+			EndIf
+			Sleep(50)
+		Wend
+		;If (MsgBox($MB_OKCANCEL, "Case Location", "Position your cursor on a unique color on the bottom of the case. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then Terminate()
+		;$bottom = $setup
 
 		Local $sCasePic_Path = @TempDir & "\Case.bmp"
 		_ScreenCapture_Capture($sCasePic_Path, $bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset, False)
@@ -663,13 +670,9 @@ Func Setup()
 		GUICtrlCreatePic($sCasePic_Path, $bottomOffset * 9, $bottomOffset * 9, $bottomOffset * 2, $bottomOffset * 2)
 
 		; Display image
-
-		Local $cancelButtonC = GUICtrlCreateButton("Cancel", 10, $bottomOffset * 21, ($bottomOffset * 20) - 20, 25)
-
-		Local $retryButtonC = GUICtrlCreateButton("Try Again", 10, $bottomOffset * 21 + 30, ($bottomOffset * 20) - 20, 25)
-
-		Local $contButtonC = GUICtrlCreateButton("Continue", 10, $bottomOffset * 21 + 60, ($bottomOffset * 20) - 20, 25)
-
+		Local $cancelButtonC 	= GUICtrlCreateButton("Cancel", 10, $bottomOffset * 21, ($bottomOffset * 20) - 20, 25)
+		Local $againButtonC 	= GUICtrlCreateButton("Try Again", 10, $bottomOffset * 21 + 30, ($bottomOffset * 20) - 20, 25)
+		Local $contButtonC 		= GUICtrlCreateButton("Continue", 10, $bottomOffset * 21 + 60, ($bottomOffset * 20) - 20, 25)
 		GUISetState()
 		WinActivate("Selected Case Position")
 
@@ -678,31 +681,26 @@ Func Setup()
 				Case $GUI_EVENT_CLOSE, $cancelButtonC
 					Terminate()
 				Case $contButtonC
-					$continue = 11
+					$response = 11
 					GUIDelete()
 					ExitLoop
-				Case $retryButtonC
-					$continue = 10
+				Case $againButtonC
+					$response = 10
 					GUIDelete()
 					ExitLoop
 			EndSwitch
 		WEnd
-	WEnd
-	;== If response is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
-	EndIf
+	Until $response = 11
+	DllClose($UserDLL)
+EndFunc
 
-	$continue = 10
-
-	While $continue = 10
+Func GetSerialPos()
+	Local $response
+	Do
 		MsgBox(0, "Serial Number", "Draw a box around the serial number AFTER 'No. 1000'.")
-		Local $hMain_GUI_SN = GUICreate("Serial Number", 240, 50)
-		
-
-		Local $hRect_Button_SN   = GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
-		Local $hCancel_Button_SN = GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
-
+		Local $hMain_GUI_SN 		= GUICreate("Serial Number", 240, 50)
+		Local $hRect_Button_SN   	= GUICtrlCreateButton("Mark Area",  10, 10, 80, 30)
+		Local $hCancel_Button_SN 	= GUICtrlCreateButton("Cancel", 150, 10, 80, 30)
 		GUISetState()
 
 		While 1
@@ -733,9 +731,9 @@ Func Setup()
 		    		; Display image
 		            $hBitmap_GUI_SN = GUICreate("Selected Rectangle", $iX3 + 1, $iY3 + 45, -1, -1)
 					GUICtrlCreatePic($sBMP_Path_SN, 0, 0, $iX3 + 1, $iY3 + 1)
-		            $cancelButton_SN = GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					$retryButton_SN = GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
-					$contButton_SN = GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+		            $cancelButton_SN 	= GUICtrlCreateButton("Cancel", 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					$retryButton_SN 	= GUICtrlCreateButton("Try Again", ($iX3 / 3) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
+					$contButton_SN 		= GUICtrlCreateButton("Continue", (($iX3 / 3) * 2) + 5, $iY3 + 10, ($iX3 / 3) - 10, 25)
 					GUISetState()
 					WinActivate("Selected Rectangle")
 					While 1
@@ -743,11 +741,11 @@ Func Setup()
 								Case $GUI_EVENT_CLOSE, $cancelButton_SN
 									Terminate()
 								Case $contButton_SN
-									$continue = 11
+									$response = 11
 									GUIDelete($hBitmap_GUI_SN)
 									ExitLoop
 								Case $retryButton_SN
-									$continue = 10
+									$response = 10
 									GUIDelete($hBitmap_GUI_SN)
 									ExitLoop
 							EndSwitch
@@ -755,117 +753,120 @@ Func Setup()
 					ExitLoop
 		    EndSwitch
 		WEnd
-		
 		Local $serialTest = _UWPOCR_GetText($sBMP_Path_SN)
 		Local $nbr = StringRegExp($serialTest, '\d+(?:,\d+)?', 1)
 
 		If $serialTest = "" or StringLen($nbr[0]) < 10 or StringLen($nbr[0]) > 10 Then
-			If MsgBox($MB_OKCANCEL, "Error", "Serial number illegible or incorrect number of digits. Try selecting a bigger area.") = 2 Then
-				Terminate()
-			EndIf
-			$continue = 10
+			If MsgBox($MB_OKCANCEL, "Error", "Serial number illegible or incorrect number of digits. Try selecting a bigger area.") = 2 Then Terminate()
+			$response = 10
 		EndIf
-	Wend
+	Until $response = 11
+EndFunc
 
-	;== Reset response
-	$continue = 10
-	;== Set position for error message
-	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Error Locations", "Position your cursor in the center of the banner above the 'Shake for Hints' text. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
-			Terminate()
-		EndIf
-		$error = MouseGetPos()
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Top left of error message position set to x = " & $error[0] & ", y = " & $error[1] & ". Continue?")
-	WEnd
-	;== If response is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
-	EndIf
+Func GetErrorPos()
+	Local $response
+	If (MsgBox($MB_OKCANCEL, "Error Locations", "Position your cursor in the center of the banner above the 'Shake for Hints' text. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then Terminate()
+	$error = MouseGetPos()
+	$response = MsgBox($MB_CANCELTRYCONTINUE, "Error Locations", "Top left of error message position set to x = " & $error[0] & ", y = " & $error[1] & ". Continue?")
+	If $response = 2 Then Terminate()
+	return $response
+EndFunc
 
-	;== Reset response
-	$continue = 10
-	;== Set position for 'next' checker
-	While ($continue = 10)
+Func GetNextPos()
+	Local $response
+	Do
 		If (MsgBox($MB_OKCANCEL, "Next Case Checker", "Position your cursor in the center of the 'Next' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 			Terminate()
 		EndIf
 		$next = MouseGetPos()
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Next Case Checker", "Position set to x = " & $next[0] & ", y = " & $next[1] & ". Continue?")
-	WEnd
-	;== If response is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
-	EndIf
+		$response = MsgBox($MB_CANCELTRYCONTINUE, "Next Case Checker", "Position set to x = " & $next[0] & ", y = " & $next[1] & ". Continue?")
+	Until $response = 10
+	If $response = 2 Then Terminate()
 
-	;== Reset response
-	$continue = 10
-	;== set position of 'next' button
-	While ($continue = 10) 
-		If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor in the bottom quarter of the 'Next Case' button. Position will be saved in " & $iTimeout & " seconds or click cancel.",$iTimeout) = 2) Then
+	Do
+		If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor in the bottom quarter of the 'Next Case' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
 			Terminate()
 		EndIf
 		$nextButton = MouseGetPos()
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Next Case' button set to x = " & $nextButton[0] & ", y = " & $nextButton[1] & ". Continue?")
-	WEnd
-	;== If response is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
-	EndIf
+		$response = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Next Case' button set to x = " & $nextButton[0] & ", y = " & $nextButton[1] & ". Continue?")
+	Until $response = 10
+	If $response = 2 Then Terminate()
+	
+	Return $response
+EndFunc
 
-	;== Reset response
-	$continue = 10
-	;== Set position of 'pick one' button
-	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor on the 'Pick One to Shake' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
-			Terminate()
-		EndIf
-		$pickButton = MouseGetPos()
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Pick One to Shake' button set to x = " & $pickButton[0] & ", y = " & $pickButton[1] & ". Continue?")
-	WEnd
-	;== If response is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
-	EndIf
+Func GetPickPos()
+	Local $response
+	If (MsgBox($MB_OKCANCEL, "Button Positions", "Position your cursor on the 'Pick One to Shake' button. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then Terminate()
+	$pickButton = MouseGetPos()
+	$response = MsgBox($MB_CANCELTRYCONTINUE, "Button Positions", "Position of 'Pick One to Shake' button set to x = " & $pickButton[0] & ", y = " & $pickButton[1] & ". Continue?")
+	If $response = 2 Then Terminate()
+	return $response
+EndFunc
 
-	;== Reset response
-	$continue = 10
-	;== Set color to search for available box
-	While ($continue = 10)
-		If (MsgBox($MB_OKCANCEL, "Color Selection", "Position your cursor on a UNIQUE color of a Pop Now figure. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then
-			Terminate()
-		EndIf
-		$mousePos = MouseGetPos()
+Func GetBoxColor()
+	Local $response
+	If (MsgBox($MB_OKCANCEL, "Color Selection", "Position your cursor on a UNIQUE color of a Pop Now figure. Position will be saved in " & $iTimeout & " seconds or click cancel.", $iTimeout) = 2) Then Terminate()
+	$mousePos = MouseGetPos()
+	GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
+	$colorCase = "0x" & Hex(PixelGetColor($mousePos[0], $mousePos[1]), 6)
+    GUISetBkColor($colorCase)
+	$textRGB = _ColorGetRGB($colorCase)
+	$brightText = GUICtrlCreateLabel("Selected box color" & @CRLF & @CRLF & "Close this window to proceed", 10, 10)
+	If $textRGB[0] < 128 or $textRGB[1] < 128 or $textRGB[2] < 128 Then GUICtrlSetColor($brightText, 0xFFFFFF)
+    GUISetState(@SW_SHOW)
 
-		GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
-		$colorCase = "0x" & Hex(PixelGetColor($mousePos[0], $mousePos[1]), 6)
-    	GUISetBkColor($colorCase)
-		$textRGB = _ColorGetRGB($colorCase)
+    ; Loop until the user exits.
+    While 1
+            Switch GUIGetMsg()
+                    Case $GUI_EVENT_CLOSE
+                            ExitLoop
+            EndSwitch
+    WEnd
 
-		$brightText = GUICtrlCreateLabel("Selected box color" & @CRLF & @CRLF & "Close this window to proceed", 10, 10)
-		
-		If $textRGB[0] < 128 or $textRGB[1] < 128 or $textRGB[2] < 128 Then
-		GUICtrlSetColor($brightText, 0xFFFFFF)
-		EndIf
+	GUIDelete()
+	
+	$iColorBox = PixelGetColor($mousePos[0], $mousePos[1])
+	$response = MsgBox($MB_CANCELTRYCONTINUE, "Color Selection", "Hex color code for Pop Now box color is 0x" & Hex($iColorBox, 6) & ". Continue?")
+	If $response = 2 Then Terminate()
+	return $response
+EndFunc
 
-    	GUISetState(@SW_SHOW)
+#cs 
+	Setup
+		User draws a box around the area where the boxes are on the screen.
+		User selects the bottom of the case.
+		User draws a box around where the serial number is located.
+		User selects general area where the error message will pop up.
+		User selects center of the next button.
+		User selects where the curor will click the next button.
+		User selects where the cursor will click the pick one button.
+		User selects on the screen the color of an available case.
+#ce
+Func Setup()
 
-    	; Loop until the user exits.
-    	While 1
-    	        Switch GUIGetMsg()
-    	                Case $GUI_EVENT_CLOSE
-    	                        ExitLoop
-    	        EndSwitch
-    	WEnd
+	GetBoxPos() 
+	GetCasePos()
 
-		GUIDelete()
-		
-		$iColorBox = PixelGetColor($mousePos[0], $mousePos[1])
-		$continue = MsgBox($MB_CANCELTRYCONTINUE, "Color Selection", "Hex color code for Pop Now box color is 0x" & Hex($iColorBox, 6) & ". Continue?")
-	WEnd
-	;== If response is 'Cancel', quit program
-	If ($continue = 2) Then
-		Terminate()
-	EndIf
+	Do
+		$continue = GetSerialPos()
+	Until $continue = 10
+
+	Do
+		$continue = GetErrorPos()
+	Until $continue = 10
+
+	Do
+		$continue = GetNextPos()
+	Until $continue = 10
+
+	Do
+		$continue = GetPickPos()
+	Until $continue = 10
+
+	Do
+		$continue = GetBoxColor()
+	Until $continue = 10
 EndFunc ;== Setup
 
 #cs 
