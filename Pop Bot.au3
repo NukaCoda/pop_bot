@@ -1,4 +1,4 @@
-;version 30
+;version 30.1
 #include <Array.au3>
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
@@ -223,9 +223,11 @@ Func PreDrop()
 
 		Do
 			If WinExists($title) and $refresh < 1 Then
+				Local $currentWin = WinGetTitle("[active]")
 				WinActivate($title)
 				WinWaitActive($title)
 				Send("{F5}")
+				WinActivate($currentWin)
 				$refresh = $refreshTimer * 120000
 			EndIf
 
@@ -258,12 +260,12 @@ EndFunc ;== PreDrop
 		Creates GUI that prompts user to enter a number for how many minutes to wait until prorgam refreshes again.
 #ce
 Func GetRefreshTimer()
-	$Form1 = GUICreate("Pop Bot", 301, 126, -1, -1, BitXOR($GUI_SS_DEFAULT_GUI, $WS_MINIMIZEBOX))
-	GUICtrlCreateLabel("Enter number of minutes to wait in between each refresh:" & @CRLF & @CRLF & "Default value: 1", 10, 10)
-	$Input1 = GUICtrlCreateInput("", 24, 60, 251, 21, $ES_NUMBER)
+	$Form1 = GUICreate("Pop Bot", 301, 166, -1, -1, BitXOR($GUI_SS_DEFAULT_GUI, $WS_MINIMIZEBOX))
+	GUICtrlCreateLabel("Ensure all windows are already in place if you are" & @CRLF & "planning to multitask while the bot refreshes the page." & @CRLF & @CRLF & "Enter number of minutes to wait in between each refresh:" & @CRLF & @CRLF & "Default value: 1", 10, 10)
+	$Input1 = GUICtrlCreateInput("", 24, 100, 251, 21, $ES_NUMBER)
 	GUICtrlSetLimit(-1, 3)
-	$Button1 = GUICtrlCreateButton("OK", 44, 90, 75, 25)
-	$Button2 = GUICtrlCreateButton("Cancel", 172, 90, 75, 25)
+	$Button1 = GUICtrlCreateButton("OK", 44, 130, 75, 25)
+	$Button2 = GUICtrlCreateButton("Cancel", 172, 130, 75, 25)
 	GUISetState(@SW_SHOW)
 
 	While 1
