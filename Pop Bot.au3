@@ -1,4 +1,4 @@
-;version 30.1
+;version 30.2
 #include <Array.au3>
 #include <WinAPIGdi.au3>
 #include <MsgBoxConstants.au3>
@@ -62,7 +62,7 @@ Func Initiate()
 	Else
 		Terminate()
 	EndIf
-	If $autoRefresh = 1 Then
+	If $autoRefresh = 1 Then ;If user said no during predop func, runs calibrate and asks if user wants to save preset
 		Calibrate()
 		SavePreset()
 
@@ -72,7 +72,7 @@ Func Initiate()
 			ToolTip("Pop Bot" & @CRLF & @CRLF & @CRLF & "Home to start" & @CRLF & "Escape to quit")
 			Sleep(50)
 		WEnd
-	ElseIf $autoRefresh = 0 Then
+	ElseIf $autoRefresh = 0 Then ;If user said yes, then  once predrop is complete, immediately run program
 		TogglePause()
 	EndIf
 EndFunc ;== Initiate
@@ -87,6 +87,7 @@ Func Calibrate()
 	Do
 		MouseMove($pickButton[0], $pickButton[1])
 		ToolTip("Calibrating " & $counter)
+		;== Next button color
 		$iColorPick = PixelGetColor($pickButton[0], $pickButton[1])
 		;== Error message location
 		$errorChecksum = PixelChecksum($error[0] - $errorOffset, $error[1] - $errorOffset, $error[0] + $errorOffset, $error[1] + $errorOffset)
@@ -100,12 +101,12 @@ Func Calibrate()
 		$counter = $counter + 5
 	Until $counter >= 100
 	Tooltip("")
-EndFunc
+EndFunc ;== Calibrate
 
 #cs 
 	ShowParameters
-		Moves the cursor between all defined coordinates for the different values when LoadPreset is successful.
-		Shows the colors that the program will look for when searching through boxes.
+		Moves the cursor between all defined coordinates for the different values
+		Shows the colors that the program will look for when searching through boxes
 #ce
 Func ShowParameters()
 	Local $mouseTemp = MouseGetPos()
@@ -174,7 +175,7 @@ Func ShowParameters()
 	ToolTip("")
 	MouseMove($mouseTemp[0], $mouseTemp[1])
 
-	GUICreate("", 200, 200) ; will create a dialog box that when displayed is centered
+	GUICreate("", 200, 200)
     GUISetBkColor($iColorBox)
 	$textRGB = _ColorGetRGB($iColorBox)
 
@@ -224,17 +225,13 @@ Func PreDrop()
 		Do
 			If WinExists($title) and $refresh < 1 Then
 				Local $currentWin = WinGetTitle("[active]")
+				Sleep(25)
 				WinActivate($title)
 				WinWaitActive($title)
 				Send("{F5}")
+				Sleep(25)
 				WinActivate($currentWin)
 				$refresh = $refreshTimer * 120000
-			EndIf
-
-			If $refresh < 0 Then
-				$title = WinGetTitle("POP MART", "")
-			ElseIf $refresh > (($refreshTimer * 120000) - 1) Then
-				$title = WinGetTitle("POP NOW", "")
 			EndIf
 
 			If Floor($refresh * 50 / 100000) = 1 Then
@@ -288,77 +285,57 @@ EndFunc
 		Records in a GUI the amount of duplicated cases there are.
 #ce
 Func DupeCheck()
+	;Creates a screenshot path in temp folder
 	Local $sImageFilePath = @TempDir & "\serialN.bmp"
-
+	;captures screenshot of serial number area
 	_ScreenCapture_Capture($sImageFilePath, $serial1[0], $serial1[1], $serial2[0], $serial2[1], False)
-
+	;creates text file to store array data for serial number in temp folder
 	Local $sFileName = @TempDir & "\serial.txt"
 	Local $hFilehandle
 	Local $newSN = True
 	Local $tmpFile
 	Local $tmpText
-
+	;if its the first serial number it clears the temp files
+	;else it adds to the temp file
 	If $freshStart = true Then 
 		$hFilehandle = FileOpen($sFileName, $FO_OVERWRITE)
 	Else
 		$hFilehandle = FileOpen($sFileName, $FO_APPEND)
 	EndIf
-
+	;detects text, specifically numbers from screenshot and only saves the last 10 numbers
+	;sometimes the multiple 0's turns into a space and i dont know why, but it breaks everything so instead i save the 10 numbers at the end
 	Local $sOCRTextResult = _UWPOCR_GetText($sImageFilePath)
-	;MsgBox(0, "", $sOCRTextResult)
 	Local $str = StringRegExpReplace($sOCRTextResult, "\D", "")
-	;MsgBox(0, "", $str)
 	Local $num = StringRight($str, 10)
-	;MsgBox(0, "", $num)
 	Local $nbr = Number($num)
-	;MsgBox(0, "", $nbr)
 	Local $counter = $serialCounter - 1
 	$serialNumber[$serialCounter] = $nbr
 	$serialAppearance[$serialCounter] = 1
-
+	;after the first serial number, it compares the current number to the previous ones for repeats.
 	If $freshStart = false Then
 		Do
 			If $serialNumber[$serialCounter] = $serialNumber[$counter] Then
-				$serialAppearance[$counter] = $serialAppearance[$counter] + 1
+				$serialAppearance[$counter] = $serialAppearance[$counter] + 1 ;adds 1 to the number of appearances a serial number has shown
 				$newSN = False
 				ExitLoop
 			Else
-				$counter = $counter - 1
+				$counter = $counter - 1 ;goes to the next number in the list
 			EndIf
 		Until $counter < 0
 	EndIf
 
-	If $newSN = True Then
-		;FileSetPos($hFileHandle, 0, $FILE_END)
+	If $newSN = True Then ;new serial number gets added to the array
 		FileWriteLine($hFilehandle, $serialNumber[$serialCounter])
 		FileWriteLine($hFilehandle, $serialAppearance[$serialCounter])
-
 		$uniquePassed = $uniquePassed + 1
-		;MsgBox(0, "", FileGetPos($hFilehandle))
-		;FileWriteLine($hFilehandle, $SNappearanceCount)
-		;MsgBox(0, "", FileGetPos($hFilehandle))
-	ElseIf $newSN = False Then
-		;FileWriteLine($hFilehandle, $serialNumber[$serialCounter])
+	ElseIf $newSN = False Then ;repeated serial number does not get added and the number of appearances gets updated in txt file
 		$tmpFile = @TempDir & "\serial.txt"
 		$tmpText = FileRead(FileGetLongName($tmpFile),FileGetSize(FileGetLongName($tmpFile)))
-		;MsgBox(0, "", $tmpText)
 		$tmpText = StringReplace($tmpText, $serialNumber[$counter] & @CRLF & $serialAppearance[$counter] - 1, $serialNumber[$counter] & @CRLF & $serialAppearance[$counter])
-		;MsgBox(0, "", $serialNumber[$counter] & @CRLF & $serialAppearance[$counter] - 1)
-		;MsgBox(0, "", $serialNumber[$counter] & @CRLF & $serialAppearance[$counter])
 		FileDelete($tmpFile)
 		FileWrite($tmpFile, $tmpText)
-
 		$dupePassed = $dupePassed + 1
-		;ToolTip("Dupe")
-		;Sleep(100)
-		;FileSetPos($hFileHandle, -1, $counter * 12)
-		;FileWrite($hFilehandle, $serialNumber[$counter + 1] + 1)
 	EndIf
-
-	;MsgBox(0, "", FileGetPos($hFilehandle))
-	;FileWriteLine($hFilehandle, $SNappearanceCount)
-	;MsgBox(0, "", FileGetPos($hFilehandle))
-
 	FileClose($sFileName)
 	$serialCounter = $serialCounter + 1
 	$freshStart = false
@@ -422,14 +399,8 @@ Func TogglePause()
 		EndIf
 
 		;== Next check
-		;== Next button loaded
-		;ToolTip("Next check")
-		;Sleep(100)
 		If ($nextChecksum = PixelChecksum($next[0] - 15, $next[1] - 15, $next[0] + 15, $next[1] + 15)) Then
 			;== Case check
-			;== Case in position
-			;ToolTip("Case check")
-			;Sleep(100)
 			If ($caseChecksum = PixelChecksum($bottom[0] - $bottomOffset, $bottom[1] - $bottomOffset, $bottom[0] + $bottomOffset, $bottom[1] + $bottomOffset)) Then
 				Sleep(50)
 				;Checks if case is a duplicate
@@ -437,9 +408,6 @@ Func TogglePause()
 
 				$boxes = PixelSearch($box1[0], $box1[1], $box2[0], $box2[1], $iColorBox, 0)
 				;== Box check
-				;== Box available
-				;ToolTip("Box check")
-				;Sleep(100)
 				If IsArray($boxes) Then
 					;== Mouse clicks pick button
 					MouseMove($pickButton[0], $pickButton[1], 0)
@@ -537,7 +505,6 @@ Func TogglePause()
                                 $soundPlayed = 1
 								Local $tSearch = FileFindFirstFile("Success Sound\*.wav")
 								Local $sFileName = FileFindNextFile($tSearch)
-								;MsgBox(0, "", $sFileName)
                                 SoundSetWaveVolume($successVolume)
 							    SoundPlay("Success Sound\" & $sFileName)
 							EndIf
@@ -572,17 +539,20 @@ Func TogglePause()
 					$boxes = 0
 				EndIf ;== Box check
 				$boxes = 0
-			;== Case not in position
 			EndIf ;== Case check
 			$boxes = 0
-		;== Next button not loaded
 		EndIf ;== Next check
 		$boxes = 0
 	WEnd ;== Program unpaused
 	ToolTip("")
 EndFunc ;== TogglePause
 
+#cs 
+	ShowValue
+		Func shows a red box outline of where user selected for set up value
+#ce
 Func ShowValue()
+	;Shows a redbox outline, top line, left line, bottom line, right line
 	$popupT = GUICreate("", $showValue[0], $showValue[1], $showValue[2], $showValue[3], $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
 	GUISetBkColor($iColorRed, $popupT)
 	$popupL = GUICreate("", $showValue[4], $showValue[5], $showValue[6], $showValue[7], $WS_POPUP, $WS_EX_TOOLWINDOW + $WS_EX_TOPMOST)
@@ -600,6 +570,7 @@ Func ShowValue()
 	GUISetState(@SW_SHOW, $popupL)
 	GUISetState(@SW_SHOW, $popupB)
 	GUISetState(@SW_SHOW, $popupR)
+	;show continue, try again, cancel pop up to ask if red box is correct
 	GUISetState(@SW_SHOW, $prompt)
 	WinActivate("Setup")
 	While 1
@@ -622,8 +593,14 @@ Func ShowValue()
 				Return 10
 		EndSwitch
 	WEnd
-EndFunc
+EndFunc ;== ShowValue
 
+#cs 
+	GetBoxPos
+		Asks user draw a rectangle around area of boxes on the screen
+		calls mark_rect
+		calls show value to show user
+#ce
 Func GetBoxPos()
 	Local $response
 	Do
@@ -674,8 +651,13 @@ Func GetBoxPos()
 		$caseLeft[0] = $box1[0]
 		$caseLeft[1] = $box1[1]
 	Until $response = 11
-EndFunc
+EndFunc ;== GetBoxPos
 
+#cs 
+	GetCasePos
+		asks user to press ctrl key on the bottom of the case of boxes
+		calls showvalue to confirm location
+#ce
 Func GetCasePos()
 	Local $response
 	Local $UserDLL = DllOpen("user32.dll")
@@ -715,8 +697,16 @@ Func GetCasePos()
 		$response = ShowValue()
 	Until $response = 11
 	DllClose($UserDLL)
-EndFunc
+EndFunc ;== GetCasePos
 
+#cs 
+	GetSerialPos
+		asks user to press ctrl key on the serial number
+		from selected point, func finds where black text is located
+		checks left and right for more black text, once where is enough non-black space, marks left and right bounds
+		checks upper and lower to find top and bottom bounds
+		calls showvalue to confirm location
+#ce
 Func GetSerialPos()
 	Local $response
 	Local $tempPos
@@ -910,7 +900,7 @@ Func GetSerialPos()
 		EndIf
 	Until $response = 11
 	DllClose($UserDLL)
-EndFunc
+EndFunc ;== GetSerialPos
 
 Func GetErrorPos()
 	Local $response
@@ -951,7 +941,7 @@ Func GetErrorPos()
 		$response = ShowValue()
 	Until $response = 11
 	DllClose($UserDLL)
-EndFunc
+EndFunc ;== GetErrorPos
 
 Func GetNextPos()
 	Local $response
@@ -994,7 +984,7 @@ Func GetNextPos()
 		$response = ShowValue()
 	Until $response = 11
 	DllClose($UserDLL)
-EndFunc
+EndFunc ;== GetNextPos
 
 Func GetPickPos()
 	Local $response
@@ -1035,7 +1025,7 @@ Func GetPickPos()
 		$response = ShowValue()
 	Until $response = 11
 	DllClose($UserDLL)
-EndFunc
+EndFunc ;== GetPickPos
 
 Func GetBoxColor()
 	Local $response
@@ -1087,18 +1077,11 @@ Func GetBoxColor()
 
 	Until $response = 11
 	DllClose($UserDLL)
-EndFunc
+EndFunc ;== GetBoxColor
 
 #cs 
 	Setup
-		User draws a box around the area where the boxes are on the screen.
-		User selects the bottom of the case.
-		User draws a box around where the serial number is located.
-		User selects general area where the error message will pop up.
-		User selects center of the next button.
-		User selects where the curor will click the next button.
-		User selects where the cursor will click the pick one button.
-		User selects on the screen the color of an available case.
+		Calls each function to get values on corresponding places for the program to click.
 #ce
 Func Setup()
 	GetBoxPos() 
